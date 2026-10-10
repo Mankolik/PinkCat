@@ -98,7 +98,7 @@ td.rankno { color: var(--muted); font-family: var(--font-display); width: 1%; }
 .card.compact { grid-template-columns: 56px 1fr auto; align-items: center; padding: 8px 12px; }
 .card.compact .thumb img { height: 40px; object-fit: cover; object-position: center 40%; }
 .card.compact .line { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; min-width: 0; }
-.card.compact .actions { display: flex; gap: 6px; }
+.card.compact .actions { display: flex; gap: 6px; grid-column: auto; }
 .card.compact button { padding: 4px 10px; font-size: 13px; }
 .card.ready { border-color: color-mix(in srgb, var(--xp) 45%, var(--line)); }
 .card.zoom { grid-template-columns: 1fr; }
@@ -168,7 +168,8 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 <script id="app-script">
 (function () {
   const DAY = 864e5;
-  const SAVED = JSON.parse(document.getElementById("state").textContent);
+  let htmlOnly = false;
+  let SAVED = JSON.parse(document.getElementById("state").textContent);
   let data = structuredClone(SAVED);
   let dirty = 0;
   let sortKey = "pGems", sortDir = -1;
@@ -309,8 +310,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       return;
     }
     const saveNote = artifactApi ? "" : `<p class="small status err">Saving isn't available in this view. Open the tracker while signed in to claude.ai with edit access to save changes.</p>`;
-    const readNote = sampleApi && sampleImages ? "Claude reads the username, rank, gems and XP from each screenshot. Check the numbers before you add them."
-      : "Automatic reading isn't available in this view, so type the numbers in after adding a screenshot.";
+    const readNote = "Screenshots are read on your device by text recognition, which costs no Claude usage." + (canAskClaude() ? " If one comes out wrong, press Ask Claude on that card." : "");
     root.innerHTML = `
       <div class="editor">
         ${dirty ? `<div class="savebar" role="status"><span>${dirty} unsaved change${dirty > 1 ? "s" : ""}. Everyone sees them once you save.</span><span class="row"><button class="ghost" id="discard-all" type="button">Discard</button><button class="primary" id="save-all" type="button" ${artifactApi ? "" : "disabled"}>Save for everyone</button></span></div>` : ""}
@@ -319,7 +319,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           ${saveNote}
           <label class="drop" id="drop">
             <b>Drop, paste or choose member screenshots</b>
-            <span class="small muted">Add as many as you like. They're read two at a time.</span>
+            <span class="small muted">Add as many as you like. They're read one after another.</span>
             <span class="small muted">${readNote}</span>
             <input type="file" id="file" accept="image/*" multiple>
           </label>
@@ -361,9 +361,139 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   function change() { dirty++; render(); renderEditor(); }
 
+  // ---------- reading a member popup (shared with the offline test script) ----------
+  // Shared OCR logic: works on {data,width,height} RGBA images.
+  function crop(img, r, scale, mode) {
+    const x0 = Math.max(0, Math.round(r.x0)), y0 = Math.max(0, Math.round(r.y0));
+    const x1 = Math.min(img.width, Math.round(r.x1)), y1 = Math.min(img.height, Math.round(r.y1));
+    const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+    const W = Math.round(w * scale), H = Math.round(h * scale);
+    const out = new Uint8ClampedArray(W * H * 4);
+    const px = (sx, sy, c) => img.data[(sy * img.width + sx) * 4 + c];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      // bilinear sample so upscaled text keeps smooth edges before thresholding
+      const fx = Math.max(0, x0 + (x + 0.5) / scale - 0.5), fy = Math.max(0, y0 + (y + 0.5) / scale - 0.5);
+      const ix = Math.min(img.width - 2, Math.floor(fx)), iy = Math.min(img.height - 2, Math.floor(fy));
+      const ax = Math.min(1, fx - ix), ay = Math.min(1, fy - iy);
+      const s3 = [0, 1, 2].map((c) => (px(ix, iy, c) * (1 - ax) + px(ix + 1, iy, c) * ax) * (1 - ay) + (px(ix, iy + 1, c) * (1 - ax) + px(ix + 1, iy + 1, c) * ax) * ay);
+      const [R, G, B] = s3;
+      let ink;
+      if (mode === "light") ink = Math.min(R, G, B) > 215; // white text on a coloured banner
+      else ink = (R * 0.3 + G * 0.59 + B * 0.11) < 170;     // dark text on a white box
+      const o = (y * W + x) * 4, v = ink ? 0 : 255;
+      out[o] = out[o + 1] = out[o + 2] = v; out[o + 3] = 255;
+    }
+    // pad with white so text doesn't touch the edge
+    const P = 12, PW = W + 2 * P, PH = H + 2 * P, pad = new Uint8ClampedArray(PW * PH * 4).fill(255);
+    for (let y = 0; y < H; y++) pad.set(out.subarray(y * W * 4, (y + 1) * W * 4), ((y + P) * PW + P) * 4);
+    return { data: pad, width: PW, height: PH };
+  }
+  // Within a tall search area, find the band of rows that holds the most text and return a tight rectangle around it.
+  function textBand(img, r, mode, rowH) {
+    const b = crop(img, r, 1, mode), P = 12;
+    const rows = [];
+    for (let y = P; y < b.height - P; y++) {
+      let n = 0;
+      for (let x = P; x < b.width - P; x++) if (b.data[(y * b.width + x) * 4] === 0) n++;
+      rows.push(n);
+    }
+    const minInk = 2, gap = Math.max(2, Math.round(rowH * 0.15));
+    let best = null, cur = null, quiet = 0;
+    rows.forEach((n, y) => {
+      if (n >= minInk) { if (!cur) cur = { y0: y, y1: y, ink: 0 }; cur.y1 = y; cur.ink += n; quiet = 0; }
+      else if (cur && ++quiet > gap) { if (!best || cur.ink > best.ink) best = cur; cur = null; quiet = 0; }
+    });
+    if (cur && (!best || cur.ink > best.ink)) best = cur;
+    if (!best) return r;
+    const pad = rowH * 0.25;
+    return { x0: r.x0, x1: r.x1, y0: Math.max(r.y0, r.y0 + best.y0 - pad), y1: r.y0 + best.y1 + pad };
+  }
+  const digits = (s) => (s || "").replace(/[Oo]/g, "0").replace(/[Il|]/g, "1").replace(/\D/g, "");
+  function lev(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  function closest(s, list, maxRatio) {
+    let best = null, bd = Infinity;
+    for (const c of list) { const d = lev(s.toLowerCase(), c.toLowerCase()); if (d < bd) { bd = d; best = c; } }
+    return best && bd <= Math.max(1, Math.floor(best.length * maxRatio)) ? best : null;
+  }
+  const RANKS = ["Leader", "Co-Leader", "Elder", "Veteran", "Member", "Recruit"];
+
+  // recognize(image, {psm, whitelist}) -> {text, confidence, lines:[{text,bbox,words:[{text,bbox}]}]}
+  function scaleWhole(img, scale) {
+    const W = Math.round(img.width * scale), H = Math.round(img.height * scale), out = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const fx = Math.max(0, (x + 0.5) / scale - 0.5), fy = Math.max(0, (y + 0.5) / scale - 0.5);
+      const ix = Math.min(img.width - 2, Math.floor(fx)), iy = Math.min(img.height - 2, Math.floor(fy));
+      const ax = Math.min(1, fx - ix), ay = Math.min(1, fy - iy);
+      for (let c = 0; c < 4; c++) {
+        const p = (xx, yy) => img.data[(yy * img.width + xx) * 4 + c];
+        out[(y * W + x) * 4 + c] = (p(ix, iy) * (1 - ax) + p(ix + 1, iy) * ax) * (1 - ay) + (p(ix, iy + 1) * (1 - ax) + p(ix + 1, iy + 1) * ax) * ay;
+      }
+    }
+    return { data: out, width: W, height: H };
+  }
+
+  async function readMemberShot(img, recognize, knownNames) {
+    // Small screenshots are enlarged so the game's text is big enough to read.
+    if (img.width < 1800) img = scaleWhole(img, 2000 / img.width);
+    const full = await recognize(img, { psm: 3 });
+    const lines = full.lines;
+    const find = (re) => lines.find((l) => re.test(l.text));
+    const don = find(/donat/i), con = find(/contrib/i), rank = find(/\bRank\b/i);
+    if (!don || !con) return { ok: false, why: "Couldn't find the donated and contributed rows. Is this a clan member popup?" };
+    const rowH = Math.max(12, con.bbox.y0 - don.bbox.y0);
+    const res = { ok: true, problems: [] };
+    // Numbers: the digit words to the right of the label on each row, re-read from a tight crop.
+    async function num(line, labelRe) {
+      const ws = line.words || [];
+      const li = ws.findIndex((w) => labelRe.test(w.text));
+      const after = ws.slice(li + 1);
+      const nw = [];
+      for (const w of after) { if (/\d/.test(w.text) && /^[^A-Za-z]*$|^[\dOoIl|,.']+$/.test(w.text)) nw.push(w); else if (nw.length) break; }
+      const fromLine = digits(nw.map((w) => w.text).join(""));
+      if (!nw.length) return { value: "", sure: false, right: null };
+      const box = { x0: Math.min(...nw.map((w) => w.bbox.x0)) - rowH * 0.3, x1: Math.max(...nw.map((w) => w.bbox.x1)) + rowH * 0.3,
+        y0: line.bbox.y0 - rowH * 0.15, y1: line.bbox.y1 + rowH * 0.15 };
+      box.y0 = Math.min(...nw.map((w) => w.bbox.y0)) - rowH * 0.2; box.y1 = Math.max(...nw.map((w) => w.bbox.y1)) + rowH * 0.2;
+      const again = await recognize(crop(img, box, 3, "dark"), { psm: 7, whitelist: "0123456789 " });
+      const second = digits(again.text);
+      return { value: second || fromLine, sure: !!second && second === fromLine, right: box.x1 };
+    }
+    const g = await num(don, /donat/i), x = await num(con, /contrib/i);
+    res.gems = g.value; res.xp = x.value;
+    if (!g.sure) res.problems.push("Check the gems number");
+    if (!x.sure) res.problems.push("Check the XP number");
+    const labelX0 = Math.min(don.bbox.x0, con.bbox.x0);
+    const boxRight = Math.max(g.right || 0, x.right || 0) || labelX0 + rowH * 10.5;
+    // Rank: value box on the Rank row.
+    const rankY = rank ? rank.bbox : { y0: don.bbox.y0 - rowH * 2.1, y1: don.bbox.y1 - rowH * 2.1 };
+    const rk = await recognize(crop(img, { x0: labelX0 + rowH * 4.4, x1: boxRight, y0: rankY.y0 - rowH * 0.2, y1: rankY.y1 + rowH * 0.2 }, 3, "dark"), { psm: 7 });
+    const rankWords = rk.text.replace(/[^A-Za-z\- ]/g, " ").split(/\s+/).filter((t) => t.length > 2);
+    let rankHit = null;
+    for (const t of rankWords.slice().reverse()) { rankHit = closest(t, RANKS, 0.34); if (rankHit) break; }
+    res.rank = rankHit || rankWords.slice(-1)[0] || "";
+    // Username: white outlined text in the banner above the Rank row, centred on the popup.
+    const cx = (labelX0 + Math.max(con.bbox.x1, boxRight + rowH * 9)) / 2;
+    const band = textBand(img, { x0: cx - rowH * 6.5, x1: cx + rowH * 6.5, y0: rankY.y0 - rowH * 4.5, y1: rankY.y0 - rowH * 1.3 }, "light", rowH);
+    const nm = await recognize(crop(img, band, 2, "light"), { psm: 7 });
+    const rawName = nm.text.replace(/\s+/g, "").replace(/[^\w.\-]/g, "");
+    const known = knownNames || [];
+    const snap = closest(rawName, known, 0.25)
+      || known.filter((k) => k.length >= 4 && rawName.toLowerCase().includes(k.toLowerCase())).sort((a, b) => b.length - a.length)[0] || null;
+    res.name = snap || rawName;
+    res.nameConf = nm.confidence;
+    if (!snap && (nm.confidence < 85 || !rawName)) res.problems.push("Check the username");
+    return res;
+  }
+
   // ---------- screenshot queue ----------
   // Each screenshot becomes a card: queued -> reading -> done | failed. Manual cards start as "manual".
-  const MAX_PARALLEL = 2;
+  // Screenshots are read on this device with Tesseract; Claude is only asked when someone presses "Ask Claude".
   let paused = false, pauseMsg = "";
 
   function addFiles(list) {
@@ -372,7 +502,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     pump();
   }
   function addCard(file) {
-    const c = { id: ++cardSeq, file, url: file ? URL.createObjectURL(file) : null, name: "", rank: "", gems: "", xp: "",
+    const c = { id: ++cardSeq, file, url: file ? URL.createObjectURL(file) : null, name: "", rank: "", gems: "", xp: "", problems: [],
       when: localInput(Date.now()), whenSrc: file ? "time added" : "", status: file ? "queued" : "manual", msg: "", open: !file, el: null };
     cards.push(c);
     if (file) guessDate(file).then((d) => { c.when = localInput(d.ms); c.whenSrc = d.src; drawCard(c); });
@@ -383,20 +513,96 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   function localInput(ms) { const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
 
   function pump() {
-    if (!sampleReady) return drawSummary();
-    if (!sampleApi || !sampleImages) {
-      cards.filter((c) => c.status === "queued").forEach((c) => fail(c, "Automatic reading isn't available here. Type the numbers from the screenshot."));
+    if (ocrState === "failed") {
+      cards.filter((c) => c.status === "queued").forEach((c) => fail(c, "Text recognition couldn't start here. Type the numbers" + (canAskClaude() ? ", or press Ask Claude." : ".")));
       return drawSummary();
     }
-    while (!paused && cards.filter((c) => c.status === "reading").length < MAX_PARALLEL) {
+    if (!paused && !cards.some((c) => c.status === "reading")) {
       const c = cards.find((x) => x.status === "queued");
-      if (!c) break;
-      readShot(c);
+      if (c) readShot(c);
     }
     drawSummary();
   }
   function fail(c, msg) { c.status = "failed"; c.msg = msg; c.open = true; drawCard(c); }
 
+  // ---------- local text recognition ----------
+  const TESS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
+  let ocrWorker = null, ocrState = "idle", ocrPromise = null;
+  function loadScript(src) {
+    return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("load " + src)); document.head.append(s); });
+  }
+  function ocrInit() {
+    if (!ocrPromise) {
+      ocrState = "loading"; drawSummary();
+      const start = (async () => {
+        if (!window.Tesseract) await loadScript(TESS + "tesseract.min.js");
+        // The English language data is published next to this page (as .wasm, a type artifacts serve).
+        // The page downloads it and the worker's request for it is pointed at that copy.
+        const resp = await fetch("eng-traineddata.wasm");
+        if (!resp.ok) throw new Error("language data " + resp.status);
+        const langUrl = URL.createObjectURL(new Blob([await resp.arrayBuffer()]));
+        const boot = `const real = self.fetch.bind(self);
+self.fetch = (u, o) => (/eng\\.traineddata/.test(String(u)) ? real(${JSON.stringify(langUrl)}, o) : real(u, o));
+importScripts(${JSON.stringify(TESS + "worker.min.js")});`;
+        const workerPath = URL.createObjectURL(new Blob([boot], { type: "application/javascript" }));
+        return Tesseract.createWorker("eng", 1, { workerPath, workerBlobURL: false, corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
+          langPath: "https://lang.invalid", gzip: true, cacheMethod: "none" });
+      })();
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 90e3));
+      ocrPromise = Promise.race([start, timeout]).then((w) => { ocrWorker = w; ocrState = "ready"; drawSummary(); return w; },
+        (e) => { console.warn("Text recognition failed to start", e); ocrState = "failed"; pump(); throw e; });
+    }
+    return ocrPromise;
+  }
+  function toCanvas(im) {
+    const cv = document.createElement("canvas");
+    cv.width = im.width; cv.height = im.height;
+    cv.getContext("2d").putImageData(new ImageData(im.data, im.width, im.height), 0, 0);
+    return cv;
+  }
+  async function ocrRecognize(im, o) {
+    await ocrWorker.setParameters({ tessedit_pageseg_mode: String(o.psm), tessedit_char_whitelist: o.whitelist || "" });
+    const r = (await ocrWorker.recognize(toCanvas(im))).data;
+    return { text: r.text || "", confidence: r.confidence || 0,
+      lines: (r.lines || []).map((l) => ({ text: l.text, bbox: l.bbox, words: (l.words || []).map((w) => ({ text: w.text, bbox: w.bbox })) })) };
+  }
+  async function fileRGBA(file) {
+    const bmp = await createImageBitmap(file);
+    const cv = document.createElement("canvas");
+    cv.width = bmp.width; cv.height = bmp.height;
+    const g = cv.getContext("2d");
+    g.drawImage(bmp, 0, 0);
+    return g.getImageData(0, 0, cv.width, cv.height);
+  }
+
+  function applyRead(c, r) {
+    c.name = r.name || ""; c.rank = r.rank || ""; c.gems = r.gems || ""; c.xp = r.xp || "";
+    const existing = data.members.find((m) => key(m.name) === key(c.name));
+    if (existing) c.name = existing.name;
+  }
+
+  async function readShot(c) {
+    c.status = "reading"; drawCard(c);
+    try {
+      await ocrInit();
+      const r = await readMemberShot(await fileRGBA(c.file), ocrRecognize, data.members.map((m) => m.name));
+      if (!r.ok) { fail(c, r.why + (canAskClaude() ? " You can type the numbers or press Ask Claude." : " Type the numbers instead.")); }
+      else {
+        applyRead(c, r);
+        c.problems = r.problems;
+        c.status = "done"; c.msg = "";
+        c.open = issues(c).block.length > 0;
+        drawCard(c);
+        redrawSameName(c);
+      }
+    } catch (e) {
+      if (ocrState !== "failed") fail(c, "This screenshot couldn't be read. Type the numbers" + (canAskClaude() ? ", or press Ask Claude." : "."));
+    }
+    pump();
+  }
+
+  // ---------- Claude fallback (one card at a time, only on request) ----------
+  const canAskClaude = () => !!(sampleApi && sampleImages);
   const PROMPT = `This is a screenshot from the game Pixel Worlds showing a clan member's info popup.
 The member's username is in the blue banner at the top of the popup. Below it are rows for Rank, Age, "donated" (next to a gem/diamond icon) and "contributed" (next to an XP icon).
 Numbers use spaces as thousand separators, e.g. "1 573 330" means 1573330.
@@ -414,43 +620,35 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     return await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.9));
   }
 
-  async function readShot(c) {
-    c.status = "reading"; drawCard(c);
+  async function askClaude(c) {
+    const prev = c.status;
+    c.status = "asking"; drawCard(c);
     try {
-      const r = await sampleApi.json(PROMPT, { images: [await fitImage(c.file)], cache: false });
+      const r = await sampleApi.json(PROMPT, { images: [await fitImage(c.file)], cache: false, modelTier: "quick" });
       const toInt = (v) => (v == null ? "" : String(v).replace(/\D/g, ""));
-      c.name = r && r.username ? String(r.username).trim() : "";
-      c.rank = r && r.rank ? String(r.rank).trim() : "";
-      c.gems = toInt(r && r.gems); c.xp = toInt(r && r.xp);
-      const existing = data.members.find((m) => key(m.name) === key(c.name));
-      if (existing) c.name = existing.name;
+      applyRead(c, { name: r && r.username ? String(r.username).trim() : "", rank: r && r.rank ? String(r.rank).trim() : "", gems: toInt(r && r.gems), xp: toInt(r && r.xp) });
+      c.problems = [];
       c.status = "done";
-      c.msg = c.name || c.gems || c.xp ? "" : "This doesn't look like a clan member popup.";
-      c.open = issues(c).block.length > 0;
-      drawCard(c);
+      c.msg = c.name || c.gems || c.xp ? "Read by Claude. Check it against the image, then add it." : "Claude says this doesn't look like a clan member popup.";
+      c.open = true;
     } catch (e) {
       const code = e && e.code;
-      if (code === "rate_limited" || code === "queue_overflow") {
-        c.status = "queued"; drawCard(c);
-        paused = true; pauseMsg = "Claude's usage limit was reached. Wait a minute or two, then press Resume.";
-      } else if (code === "not_granted" || code === "sampling_disabled" || code === "images_unavailable" || code === "not_declared") {
-        sampleImages = false;
-        fail(c, "Claude wasn't allowed to read screenshots here. Type the numbers instead.");
-      } else {
-        fail(c, {
-          image_rejected: "That image couldn't be read. Try a PNG or JPG screenshot.",
-          refused: "Claude couldn't read this image. Type the numbers instead.",
-          invalid_json: "The reply couldn't be understood. Type the numbers, or press Read again.",
-          session_expired: "Your claude.ai sign-in expired. Sign in again, then press Read again.",
-        }[code] || "Reading failed. Type the numbers, or press Read again.");
-      }
+      if (code === "not_granted" || code === "sampling_disabled" || code === "images_unavailable" || code === "not_declared") sampleImages = false;
+      c.status = prev === "asking" ? "failed" : prev;
+      c.msg = {
+        rate_limited: "Claude's usage limit was reached. Try again in a few minutes, or type the numbers.",
+        not_granted: "Claude wasn't allowed to read screenshots here. Type the numbers instead.",
+        image_rejected: "That image couldn't be sent. Try a PNG or JPG screenshot.",
+        refused: "Claude couldn't read this image. Type the numbers instead.",
+        session_expired: "Your claude.ai sign-in expired. Sign in again, then try once more.",
+      }[code] || "Claude couldn't read it this time. Type the numbers, or try again later.";
     }
-    pump();
+    drawCard(c); drawSummary();
   }
 
   // Problems that keep a card out of "Add all ready" (block) and things worth a glance (info).
   function issues(c) {
-    const block = [], info = [];
+    const block = [...(c.problems || [])], info = [];
     if (!c.name.trim()) block.push("Username missing");
     if (c.gems === "") block.push("Gems missing");
     if (c.xp === "") block.push("XP missing");
@@ -463,9 +661,12 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
       if (c.xp !== "" && +c.xp < last.xp) block.push(`XP lower than last time (${fmt(last.xp)})`);
       if (+c.gems === last.gems && +c.xp === last.xp) info.push("Same numbers as last screenshot");
     }
-    const twin = cards.find((o) => o !== c && o.name && key(o.name) === key(c.name) && (o.status === "done" || o.status === "manual" || o.status === "failed"));
+    const settled = (o) => o.status === "done" || o.status === "manual" || o.status === "failed";
+    const twin = cards.find((o) => o !== c && o.name && key(o.name) === key(c.name) && settled(o));
+    const earlierSame = cards.find((o) => cards.indexOf(o) < cards.indexOf(c) && o.name && key(o.name) === key(c.name) && settled(o) && o.gems === c.gems && o.xp === c.xp);
     if (c.name.trim() && twin) {
-      if (twin.gems === c.gems && twin.xp === c.xp) block.push("Duplicate of another screenshot in the queue");
+      if (earlierSame) block.push("Duplicate of an earlier screenshot in the queue");
+      else if (twin.gems === c.gems && twin.xp === c.xp) info.push("Has a duplicate later in the queue");
       else info.push("This member appears twice in the queue");
     }
     return { block, info };
@@ -482,11 +683,11 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   function drawCard(c) {
     if (!c.el) return;
     const iss = issues(c);
-    const busy = c.status === "queued" || c.status === "reading";
+    const busy = c.status === "queued" || c.status === "reading" || c.status === "asking";
     const thumb = c.url ? `<img src="${c.url}" alt="Screenshot ${c.id}">` : `<p class="small muted">Typed in</p>`;
     if (busy) {
       c.el.className = "card compact";
-      c.el.innerHTML = `<div class="thumb">${thumb}</div><p class="small muted">${c.status === "reading" ? "Reading screenshot…" : "Waiting in queue"}</p><div class="actions"><button type="button" data-act="drop">Remove</button></div>`;
+      c.el.innerHTML = `<div class="thumb">${thumb}</div><p class="small muted">${c.status === "reading" ? (ocrState === "loading" ? "Loading text recognition…" : "Reading screenshot…") : c.status === "asking" ? "Asking Claude…" : "Waiting in queue"}</p><div class="actions"><button type="button" data-act="drop">Remove</button></div>`;
     } else if (!c.open && isReady(c)) {
       c.el.className = "card compact ready";
       c.el.innerHTML = `<div class="thumb">${thumb}</div>
@@ -508,7 +709,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
           <label><span>${XP_SVG}XP contributed (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-xp" data-f="xp" value="${esc(c.xp)}"></label>
           <label><span>Screenshot taken${c.whenSrc ? ` <span class="src">(from ${esc(c.whenSrc)})</span>` : ""}</span><input type="datetime-local" id="c${c.id}-when" data-f="when" value="${esc(c.when)}"></label>
           <div class="notes">${notesHtml(iss)}</div>
-          <div class="actions"><button type="button" class="primary" data-act="add">Add to tracker</button>${c.file && c.status === "failed" && sampleApi && sampleImages ? `<button type="button" data-act="retry">Read again</button>` : ""}<button type="button" data-act="drop">Remove</button></div>
+          <div class="actions"><button type="button" class="primary" data-act="add">Add to tracker</button>${c.file && c.status === "failed" && ocrState === "ready" ? `<button type="button" data-act="retry">Read again</button>` : ""}${c.file && canAskClaude() ? `<button type="button" data-act="claude" title="Uses your Claude usage for this one screenshot">Ask Claude</button>` : ""}<button type="button" data-act="drop">Remove</button></div>
         </div>`;
       c.el.querySelectorAll("[data-f]").forEach((inp) => {
         inp.addEventListener("input", () => {
@@ -516,6 +717,8 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
           if (inp.dataset.f === "gems" || inp.dataset.f === "xp") { v = v.replace(/\D/g, ""); if (v !== inp.value) inp.value = v; }
           c[inp.dataset.f] = v;
           if (inp.dataset.f === "when") c.whenSrc = "";
+          const word = { name: "username", gems: "gems", xp: "XP" }[inp.dataset.f];
+          if (word) c.problems = (c.problems || []).filter((t) => !t.includes(word));
           c.el.querySelector(".notes").innerHTML = notesHtml(issues(c));
           drawSummary();
         });
@@ -527,12 +730,20 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
       if (act === "drop") { dropCard(c); pump(); return; }
       if (act === "open") { c.open = true; drawCard(c); return; }
       if (act === "retry") { c.status = "queued"; c.msg = ""; drawCard(c); pump(); return; }
+      if (act === "claude") { askClaude(c); return; }
       if (act === "add") {
         const bl = issues(c).block.filter((t) => /missing/.test(t));
         if (bl.length) { const st = c.el.querySelector(".status"); st.className = "status err"; st.textContent = "Fill in the username, gems, XP and date before adding."; return; }
         commitCards([c]);
       }
     }));
+  }
+  function redrawSameName(c) {
+    cards.forEach((o) => {
+      if (o === c || !o.name || key(o.name) !== key(c.name)) return;
+      if (!o.open || !o.el.querySelector(".notes")) drawCard(o);
+      else o.el.querySelector(".notes").innerHTML = notesHtml(issues(o));
+    });
   }
   function notesHtml(iss) {
     return iss.block.map((t) => `<span class="chip warn">${esc(t)}</span>`).join("") + iss.info.map((t) => `<span class="chip">${esc(t)}</span>`).join("");
@@ -546,7 +757,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     const n = (s) => cards.filter((c) => c.status === s).length;
     const waiting = n("queued"), reading = n("reading");
     const ready = cards.filter(isReady).length;
-    const look = cards.length - waiting - reading - ready;
+    const look = cards.length - waiting - reading - ready - n("asking");
     const total = cards.length, doneCount = total - waiting - reading;
     bar.innerHTML = `
       <div class="qstats">
@@ -556,6 +767,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
         ${look ? `<span class="warn-t"><b class="num">${look}</b> need a look</span>` : ""}
       </div>
       <div class="qprog" aria-hidden="true"><i style="width:${total ? (doneCount / total) * 100 : 0}%"></i></div>
+      ${ocrState === "loading" ? `<p class="small muted">Loading text recognition (about 6 MB, once per visit)…</p>` : ""}
       ${paused ? `<p class="small status err">${esc(pauseMsg)}</p>` : ""}
       <div class="row">
         <button type="button" class="primary" data-q="addall" ${ready ? "" : "disabled"}>Add ${ready} ready</button>
@@ -698,6 +910,19 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   }
   async function save() {
     const btn = $("#save-all");
+    if (!htmlOnly) {
+      btn.disabled = true; btn.textContent = "Saving…";
+      try {
+        await artifactApi.publish({ "index.html": { content: buildHtml(data), contentType: "text/html" } });
+        SAVED = structuredClone(data); dirty = 0; render(); renderEditor();
+        return;
+      } catch (e) {
+        const code = e && e.code;
+        if (code !== "capability_disabled" && code !== "invalid_content" && code !== "read_only_path" && code !== "capability_removed" && code !== "transform_error") return saveFailed(btn, e);
+        htmlOnly = true;
+        btn.disabled = false; btn.textContent = "Save for everyone";
+      }
+    }
     if (cards.length && !btn.dataset.confirm) {
       btn.dataset.confirm = "1";
       btn.textContent = `Save anyway (${cards.length} queued screenshot${cards.length > 1 ? "s" : ""} will be dropped)`;
@@ -707,15 +932,18 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     try {
       await artifactApi.publish(buildHtml(data));
     } catch (e) {
-      const msg = {
-        conflict: "Someone else saved first. The page is reloading with their version; add your screenshots again.",
-        not_writer: "Your account can view this tracker but not change it. Ask the owner for edit access.",
-        not_granted: "Saving wasn't allowed. Check the artifact's permissions and try again.",
-        rate_limited: "Too many saves in a row. Wait a minute and try again.",
-      }[e && e.code] || "Saving failed. Try again in a moment.";
-      btn.disabled = false; btn.textContent = "Save for everyone";
-      btn.closest(".savebar").querySelector("span").textContent = msg;
+      saveFailed(btn, e);
     }
+  }
+  function saveFailed(btn, e) {
+    const msg = {
+      conflict: "Someone else saved first. The page is reloading with their version; add your screenshots again.",
+      not_writer: "Your account can view this tracker but not change it. Ask the owner for edit access.",
+      not_granted: "Saving wasn't allowed. Check the artifact's permissions and try again.",
+      rate_limited: "Too many saves in a row. Wait a minute and try again.",
+    }[e && e.code] || "Saving failed. Try again in a moment.";
+    btn.disabled = false; btn.textContent = "Save for everyone";
+    btn.closest(".savebar").querySelector("span").textContent = msg;
   }
 
   // ---------- boot ----------
