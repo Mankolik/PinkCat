@@ -95,7 +95,22 @@ td.rankno { color: var(--muted); font-family: var(--font-display); width: 1%; }
 .status.err { color: var(--bad); }
 .status.ok { color: var(--xp); }
 .notes { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
-@media (max-width: 560px) { .card { grid-template-columns: 1fr; } .card .thumb { max-width: 220px; } }
+.card.compact { grid-template-columns: 56px 1fr auto; align-items: center; padding: 8px 12px; }
+.card.compact .thumb img { height: 40px; object-fit: cover; object-position: center 40%; }
+.card.compact .line { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; min-width: 0; }
+.card.compact .actions { display: flex; gap: 6px; }
+.card.compact button { padding: 4px 10px; font-size: 13px; }
+.card.ready { border-color: color-mix(in srgb, var(--xp) 45%, var(--line)); }
+.card.zoom { grid-template-columns: 1fr; }
+.card.zoom .thumb { max-width: none; }
+.card .src { font-weight: 500; }
+.queuebar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 3; background: var(--panel-2); border: 2px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
+.qstats { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.warn-t { color: var(--gold); }
+.qprog { height: 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.qprog i { display: block; height: 100%; background: var(--xp); transition: width .3s; }
+@media (prefers-reduced-motion: reduce) { .qprog i { transition: none; } }
+@media (max-width: 560px) { .card { grid-template-columns: 1fr; } .card .thumb { max-width: 220px; } .card.compact { grid-template-columns: 48px 1fr; } .card.compact .actions { grid-column: 1 / -1; } }
 
 details.member { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 details.member summary { cursor: pointer; padding: 10px 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -159,7 +174,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   let sortKey = "pGems", sortDir = -1;
   let periodIdx = 0;
   let unlocked = false;
-  let artifactApi = null, sampleApi = null, sampleImages = false;
+  let artifactApi = null, sampleApi = null, sampleImages = false, sampleReady = false, sampleLimits = null;
   let cards = [];
   let cardSeq = 0;
 
@@ -304,10 +319,12 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           ${saveNote}
           <label class="drop" id="drop">
             <b>Drop, paste or choose member screenshots</b>
+            <span class="small muted">Add as many as you like. They're read two at a time.</span>
             <span class="small muted">${readNote}</span>
             <input type="file" id="file" accept="image/*" multiple>
           </label>
           <div class="row"><button type="button" id="manual">Add a member by hand</button></div>
+          <div class="queuebar" id="queue-bar" hidden></div>
           <div class="cards" id="cards"></div>
         </div>
         <div class="panel">
@@ -327,11 +344,11 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       </div>`;
     $("#lock").onclick = () => { unlocked = false; ss.del("pc-unlocked"); renderEditor(); };
     $("#manual").onclick = () => { addCard(null); };
-    $("#file").onchange = (e) => { [...e.target.files].forEach(addCard); e.target.value = ""; };
+    $("#file").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
     const drop = $("#drop");
     drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
     drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-    drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); [...e.dataTransfer.files].filter((f) => f.type.startsWith("image/")).forEach(addCard); });
+    drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
     $("#anchor").onchange = (e) => { const v = Date.parse(e.target.value + ":00Z"); if (!isNaN(v)) { data.anchor = new Date(v).toISOString(); change(); } };
     $("#plen").onchange = (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= 90) { data.periodDays = v; change(); } };
     if (dirty) {
@@ -344,101 +361,282 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   function change() { dirty++; render(); renderEditor(); }
 
-  // screenshot review cards
+  // ---------- screenshot queue ----------
+  // Each screenshot becomes a card: queued -> reading -> done | failed. Manual cards start as "manual".
+  const MAX_PARALLEL = 2;
+  let paused = false, pauseMsg = "";
+
+  function addFiles(list) {
+    const files = [...list].filter((f) => f.type.startsWith("image/"));
+    files.forEach((f) => addCard(f));
+    pump();
+  }
   function addCard(file) {
-    const c = { id: ++cardSeq, file, url: file ? URL.createObjectURL(file) : null, name: "", rank: "", gems: "", xp: "", when: localInput(Date.now()), status: file ? "reading" : "manual", msg: "" };
+    const c = { id: ++cardSeq, file, url: file ? URL.createObjectURL(file) : null, name: "", rank: "", gems: "", xp: "",
+      when: localInput(Date.now()), whenSrc: file ? "time added" : "", status: file ? "queued" : "manual", msg: "", open: !file, el: null };
     cards.push(c);
-    renderCards();
-    if (file) readShot(c);
+    if (file) guessDate(file).then((d) => { c.when = localInput(d.ms); c.whenSrc = d.src; drawCard(c); });
+    mountCard(c);
+    drawSummary();
+    return c;
   }
   function localInput(ms) { const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+
+  function pump() {
+    if (!sampleReady) return drawSummary();
+    if (!sampleApi || !sampleImages) {
+      cards.filter((c) => c.status === "queued").forEach((c) => fail(c, "Automatic reading isn't available here. Type the numbers from the screenshot."));
+      return drawSummary();
+    }
+    while (!paused && cards.filter((c) => c.status === "reading").length < MAX_PARALLEL) {
+      const c = cards.find((x) => x.status === "queued");
+      if (!c) break;
+      readShot(c);
+    }
+    drawSummary();
+  }
+  function fail(c, msg) { c.status = "failed"; c.msg = msg; c.open = true; drawCard(c); }
 
   const PROMPT = `This is a screenshot from the game Pixel Worlds showing a clan member's info popup.
 The member's username is in the blue banner at the top of the popup. Below it are rows for Rank, Age, "donated" (next to a gem/diamond icon) and "contributed" (next to an XP icon).
 Numbers use spaces as thousand separators, e.g. "1 573 330" means 1573330.
 Reply with only this JSON: {"username": string|null, "rank": string|null, "gems": integer|null, "xp": integer|null}
-gems = the donated number, xp = the contributed number. Copy the username exactly as shown. Use null for anything you cannot read clearly.`;
+gems = the donated number, xp = the contributed number. Copy the username exactly as shown. Use null for anything you cannot read clearly, and all nulls if this is not a clan member popup.`;
 
-  async function readShot(c) {
-    if (!sampleApi || !sampleImages) { c.status = "manual"; c.msg = "Automatic reading isn't available here. Type the numbers from the screenshot."; renderCards(); return; }
-    try {
-      const r = await sampleApi.json(PROMPT, { images: [c.file], cache: false });
-      const toInt = (v) => (v == null ? "" : String(v).replace(/\D/g, ""));
-      c.name = r.username ? String(r.username).trim() : "";
-      c.rank = r.rank ? String(r.rank).trim() : "";
-      c.gems = toInt(r.gems); c.xp = toInt(r.xp);
-      const existing = data.members.find((m) => key(m.name) === key(c.name));
-      if (existing) c.name = existing.name;
-      c.status = "read"; c.msg = "Read from the screenshot. Check it against the image, then add it.";
-    } catch (e) {
-      const why = {
-        not_granted: "Claude wasn't given permission to read screenshots. Type the numbers instead.",
-        rate_limited: "Too many screenshots at once. Wait a minute, or type the numbers.",
-        image_rejected: "That image couldn't be read. Try a PNG or JPG screenshot.",
-        refused: "Claude couldn't read this image. Type the numbers instead.",
-        invalid_json: "The reply couldn't be understood. Type the numbers, or remove the card and add the screenshot again.",
-      }[e && e.code] || "Reading failed. Type the numbers, or try the screenshot again later.";
-      c.status = "manual"; c.msg = why;
-    }
-    renderCards();
+  async function fitImage(file) {
+    const lim = sampleLimits && sampleLimits.images;
+    if (lim && file.size <= lim.maxInputBytes && lim.mediaTypes.includes(file.type)) return file;
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(bmp.width * scale); cv.height = Math.round(bmp.height * scale);
+    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+    return await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.9));
   }
 
-  function cardNotes(c) {
-    const notes = [];
-    const m = data.members.find((x) => key(x.name) === key(c.name));
-    if (c.name && !m) notes.push(`<span class="chip warn">New member</span>`);
-    if (m) {
-      const last = m.entries.slice().sort((a, b) => Date.parse(a.t) - Date.parse(b.t)).pop();
-      if (last && c.gems !== "" && +c.gems < last.gems) notes.push(`<span class="chip warn">Gems lower than last time (${fmt(last.gems)})</span>`);
-      if (last && c.xp !== "" && +c.xp < last.xp) notes.push(`<span class="chip warn">XP lower than last time (${fmt(last.xp)})</span>`);
+  async function readShot(c) {
+    c.status = "reading"; drawCard(c);
+    try {
+      const r = await sampleApi.json(PROMPT, { images: [await fitImage(c.file)], cache: false });
+      const toInt = (v) => (v == null ? "" : String(v).replace(/\D/g, ""));
+      c.name = r && r.username ? String(r.username).trim() : "";
+      c.rank = r && r.rank ? String(r.rank).trim() : "";
+      c.gems = toInt(r && r.gems); c.xp = toInt(r && r.xp);
+      const existing = data.members.find((m) => key(m.name) === key(c.name));
+      if (existing) c.name = existing.name;
+      c.status = "done";
+      c.msg = c.name || c.gems || c.xp ? "" : "This doesn't look like a clan member popup.";
+      c.open = issues(c).block.length > 0;
+      drawCard(c);
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "rate_limited" || code === "queue_overflow") {
+        c.status = "queued"; drawCard(c);
+        paused = true; pauseMsg = "Claude's usage limit was reached. Wait a minute or two, then press Resume.";
+      } else if (code === "not_granted" || code === "sampling_disabled" || code === "images_unavailable" || code === "not_declared") {
+        sampleImages = false;
+        fail(c, "Claude wasn't allowed to read screenshots here. Type the numbers instead.");
+      } else {
+        fail(c, {
+          image_rejected: "That image couldn't be read. Try a PNG or JPG screenshot.",
+          refused: "Claude couldn't read this image. Type the numbers instead.",
+          invalid_json: "The reply couldn't be understood. Type the numbers, or press Read again.",
+          session_expired: "Your claude.ai sign-in expired. Sign in again, then press Read again.",
+        }[code] || "Reading failed. Type the numbers, or press Read again.");
+      }
     }
-    return notes.join("");
+    pump();
+  }
+
+  // Problems that keep a card out of "Add all ready" (block) and things worth a glance (info).
+  function issues(c) {
+    const block = [], info = [];
+    if (!c.name.trim()) block.push("Username missing");
+    if (c.gems === "") block.push("Gems missing");
+    if (c.xp === "") block.push("XP missing");
+    if (isNaN(Date.parse(c.when))) block.push("Date missing");
+    const m = data.members.find((x) => key(x.name) === key(c.name));
+    if (c.name.trim() && !m) info.push("New member");
+    if (m && m.entries.length) {
+      const last = m.entries.slice().sort((a, b) => Date.parse(a.t) - Date.parse(b.t)).pop();
+      if (c.gems !== "" && +c.gems < last.gems) block.push(`Gems lower than last time (${fmt(last.gems)})`);
+      if (c.xp !== "" && +c.xp < last.xp) block.push(`XP lower than last time (${fmt(last.xp)})`);
+      if (+c.gems === last.gems && +c.xp === last.xp) info.push("Same numbers as last screenshot");
+    }
+    const twin = cards.find((o) => o !== c && o.name && key(o.name) === key(c.name) && (o.status === "done" || o.status === "manual" || o.status === "failed"));
+    if (c.name.trim() && twin) {
+      if (twin.gems === c.gems && twin.xp === c.xp) block.push("Duplicate of another screenshot in the queue");
+      else info.push("This member appears twice in the queue");
+    }
+    return { block, info };
+  }
+  const isReady = (c) => c.status === "done" && issues(c).block.length === 0;
+
+  function mountCard(c) {
+    c.el = document.createElement("div");
+    const box = $("#cards");
+    if (box) box.append(c.el);
+    drawCard(c);
+  }
+
+  function drawCard(c) {
+    if (!c.el) return;
+    const iss = issues(c);
+    const busy = c.status === "queued" || c.status === "reading";
+    const thumb = c.url ? `<img src="${c.url}" alt="Screenshot ${c.id}">` : `<p class="small muted">Typed in</p>`;
+    if (busy) {
+      c.el.className = "card compact";
+      c.el.innerHTML = `<div class="thumb">${thumb}</div><p class="small muted">${c.status === "reading" ? "Reading screenshot…" : "Waiting in queue"}</p><div class="actions"><button type="button" data-act="drop">Remove</button></div>`;
+    } else if (!c.open && isReady(c)) {
+      c.el.className = "card compact ready";
+      c.el.innerHTML = `<div class="thumb">${thumb}</div>
+        <div class="line"><b>${esc(c.name)}</b>${c.rank ? ` <span class="chip">${esc(c.rank)}</span>` : ""}
+          <span class="num gem">${GEM_SVG}${fmt(+c.gems)}</span><span class="num xp">${XP_SVG}${fmt(+c.xp)}</span>
+          <span class="small muted">${esc(c.when.replace("T", " "))}</span>${iss.info.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+        <div class="actions"><button type="button" data-act="open">Check</button><button type="button" data-act="drop">Remove</button></div>`;
+    } else {
+      const tone = c.status === "failed" ? "err" : iss.block.length ? "" : "ok";
+      const text = c.msg || (c.status === "manual" ? "Type the member's numbers from the game." : iss.block.length ? "Check the highlighted problems against the screenshot." : "Read from the screenshot. Check it against the image, then add it.");
+      c.el.className = "card";
+      c.el.innerHTML = `
+        <div class="thumb">${c.url ? `<a href="#" data-act="zoom" title="Show full size">${thumb}</a>` : thumb}</div>
+        <div class="fields">
+          <p class="status ${tone}">${esc(text)}</p>
+          <label>Username<input type="text" id="c${c.id}-name" data-f="name" list="member-names" value="${esc(c.name)}"></label>
+          <label>Rank<input type="text" id="c${c.id}-rank" data-f="rank" value="${esc(c.rank)}" placeholder="Leader, Elder…"></label>
+          <label><span>${GEM_SVG}Gems donated (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-gems" data-f="gems" value="${esc(c.gems)}"></label>
+          <label><span>${XP_SVG}XP contributed (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-xp" data-f="xp" value="${esc(c.xp)}"></label>
+          <label><span>Screenshot taken${c.whenSrc ? ` <span class="src">(from ${esc(c.whenSrc)})</span>` : ""}</span><input type="datetime-local" id="c${c.id}-when" data-f="when" value="${esc(c.when)}"></label>
+          <div class="notes">${notesHtml(iss)}</div>
+          <div class="actions"><button type="button" class="primary" data-act="add">Add to tracker</button>${c.file && c.status === "failed" && sampleApi && sampleImages ? `<button type="button" data-act="retry">Read again</button>` : ""}<button type="button" data-act="drop">Remove</button></div>
+        </div>`;
+      c.el.querySelectorAll("[data-f]").forEach((inp) => {
+        inp.addEventListener("input", () => {
+          let v = inp.value;
+          if (inp.dataset.f === "gems" || inp.dataset.f === "xp") { v = v.replace(/\D/g, ""); if (v !== inp.value) inp.value = v; }
+          c[inp.dataset.f] = v;
+          if (inp.dataset.f === "when") c.whenSrc = "";
+          c.el.querySelector(".notes").innerHTML = notesHtml(issues(c));
+          drawSummary();
+        });
+      });
+    }
+    c.el.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", (e) => {
+      const act = b.dataset.act;
+      if (act === "zoom") { e.preventDefault(); c.el.classList.toggle("zoom"); return; }
+      if (act === "drop") { dropCard(c); pump(); return; }
+      if (act === "open") { c.open = true; drawCard(c); return; }
+      if (act === "retry") { c.status = "queued"; c.msg = ""; drawCard(c); pump(); return; }
+      if (act === "add") {
+        const bl = issues(c).block.filter((t) => /missing/.test(t));
+        if (bl.length) { const st = c.el.querySelector(".status"); st.className = "status err"; st.textContent = "Fill in the username, gems, XP and date before adding."; return; }
+        commitCards([c]);
+      }
+    }));
+  }
+  function notesHtml(iss) {
+    return iss.block.map((t) => `<span class="chip warn">${esc(t)}</span>`).join("") + iss.info.map((t) => `<span class="chip">${esc(t)}</span>`).join("");
+  }
+
+  function drawSummary() {
+    const bar = $("#queue-bar");
+    if (!bar) return;
+    if (!cards.length) { bar.hidden = true; return; }
+    bar.hidden = false;
+    const n = (s) => cards.filter((c) => c.status === s).length;
+    const waiting = n("queued"), reading = n("reading");
+    const ready = cards.filter(isReady).length;
+    const look = cards.length - waiting - reading - ready;
+    const total = cards.length, doneCount = total - waiting - reading;
+    bar.innerHTML = `
+      <div class="qstats">
+        <span><b class="num">${doneCount}</b> of <b class="num">${total}</b> read</span>
+        ${waiting + reading ? `<span class="muted">${reading} reading, ${waiting} waiting</span>` : ""}
+        <span class="xp"><b class="num">${ready}</b> ready</span>
+        ${look ? `<span class="warn-t"><b class="num">${look}</b> need a look</span>` : ""}
+      </div>
+      <div class="qprog" aria-hidden="true"><i style="width:${total ? (doneCount / total) * 100 : 0}%"></i></div>
+      ${paused ? `<p class="small status err">${esc(pauseMsg)}</p>` : ""}
+      <div class="row">
+        <button type="button" class="primary" data-q="addall" ${ready ? "" : "disabled"}>Add ${ready} ready</button>
+        ${paused ? `<button type="button" data-q="resume">Resume</button>` : waiting ? `<button type="button" data-q="pause">Pause</button>` : ""}
+        <button type="button" data-q="clear">Clear queue</button>
+      </div>`;
+    bar.querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => {
+      const q = b.dataset.q;
+      if (q === "addall") commitCards(cards.filter(isReady));
+      if (q === "pause") { paused = true; pauseMsg = "Paused. Screenshots being read now will finish."; pump(); }
+      if (q === "resume") { paused = false; pump(); }
+      if (q === "clear") {
+        if (!b.dataset.confirm) { b.dataset.confirm = "1"; b.textContent = `Click again to remove all ${cards.length}`; return; }
+        cards.slice().forEach(dropCard); paused = false; drawSummary();
+      }
+    }));
   }
 
   function renderCards() {
     const box = $("#cards");
     if (!box) return;
-    box.innerHTML = cards.map((c) => `
-      <div class="card" data-card="${c.id}">
-        <div class="thumb">${c.url ? `<img src="${c.url}" alt="Uploaded screenshot">` : `<p class="small muted">Manual entry</p>`}</div>
-        <div class="fields">
-          <p class="status ${c.status === "read" ? "ok" : c.status === "manual" && c.file ? "err" : ""}">${c.status === "reading" ? "Reading screenshot…" : esc(c.msg)}</p>
-          <label>Username<input type="text" id="c${c.id}-name" data-f="name" list="member-names" value="${esc(c.name)}"></label>
-          <label>Rank<input type="text" id="c${c.id}-rank" data-f="rank" value="${esc(c.rank)}" placeholder="Leader, Elder…"></label>
-          <label><span>${GEM_SVG}Gems donated (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-gems" data-f="gems" value="${esc(c.gems)}"></label>
-          <label><span>${XP_SVG}XP contributed (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-xp" data-f="xp" value="${esc(c.xp)}"></label>
-          <label>Screenshot taken<input type="datetime-local" id="c${c.id}-when" data-f="when" value="${esc(c.when)}"></label>
-          <div class="notes">${cardNotes(c)}</div>
-          <div class="actions"><button type="button" class="primary" data-act="add" ${c.status === "reading" ? "disabled" : ""}>Add to tracker</button><button type="button" data-act="drop">Remove</button></div>
-        </div>
-      </div>`).join("") + `<datalist id="member-names">${data.members.map((m) => `<option value="${esc(m.name)}">`).join("")}</datalist>`;
-    box.querySelectorAll("[data-card]").forEach((el) => {
-      const c = cards.find((x) => x.id === +el.dataset.card);
-      el.querySelectorAll("[data-f]").forEach((inp) => {
-        inp.addEventListener("input", () => {
-          let v = inp.value;
-          if (inp.dataset.f === "gems" || inp.dataset.f === "xp") v = v.replace(/\D/g, "");
-          c[inp.dataset.f] = v;
-          el.querySelector(".notes").innerHTML = cardNotes(c);
-        });
-      });
-      el.querySelector('[data-act="drop"]').onclick = () => { dropCard(c); renderCards(); };
-      el.querySelector('[data-act="add"]').onclick = () => commitCard(c, el);
-    });
+    cards.forEach((c) => { box.append(c.el); drawCard(c); });
+    let dl = $("#member-names");
+    if (!dl) { dl = document.createElement("datalist"); dl.id = "member-names"; document.body.append(dl); }
+    dl.innerHTML = data.members.map((m) => `<option value="${esc(m.name)}">`).join("");
+    drawSummary();
   }
-  function dropCard(c) { if (c.url) URL.revokeObjectURL(c.url); cards = cards.filter((x) => x !== c); }
+  function dropCard(c) { if (c.url) URL.revokeObjectURL(c.url); if (c.el) c.el.remove(); cards = cards.filter((x) => x !== c); drawSummary(); }
 
-  function commitCard(c, el) {
-    const name = c.name.trim();
-    const t = Date.parse(c.when);
-    const status = el.querySelector(".status");
-    if (!name || c.gems === "" || c.xp === "" || isNaN(t)) { status.className = "status err"; status.textContent = "Fill in the username, gems, XP and date before adding."; return; }
-    let m = data.members.find((x) => key(x.name) === key(name));
-    if (!m) { m = { name, rank: "", entries: [] }; data.members.push(m); }
-    if (c.rank.trim()) m.rank = c.rank.trim();
-    m.entries.push({ t: new Date(t).toISOString(), gems: +c.gems, xp: +c.xp });
-    dropCard(c);
+  function commitCards(list) {
+    list.forEach((c) => {
+      const t = Date.parse(c.when);
+      const name = c.name.trim();
+      let m = data.members.find((x) => key(x.name) === key(name));
+      if (!m) { m = { name, rank: "", entries: [] }; data.members.push(m); }
+      if (c.rank.trim()) m.rank = c.rank.trim();
+      m.entries.push({ t: new Date(t).toISOString(), gems: +c.gems, xp: +c.xp });
+      dropCard(c);
+    });
     change();
+  }
+
+  // ---------- screenshot dates ----------
+  // Best guess at when a screenshot was taken: photo info (JPEG EXIF), then a date in the
+  // file name, then the file's saved time. Pasted images have none of these, so they get "now".
+  async function guessDate(file) {
+    const now = Date.now();
+    const ok = (ms) => ms && ms <= now + 60e3 && ms > now - 400 * DAY;
+    try { if (/jpe?g/i.test(file.type)) { const ms = await exifDate(file); if (ok(ms)) return { ms, src: "photo info" }; } } catch {}
+    const fn = nameDate(file.name || "");
+    if (ok(fn)) return { ms: fn, src: "file name" };
+    if (ok(file.lastModified) && now - file.lastModified > 5000) return { ms: file.lastModified, src: "file's saved time" };
+    return { ms: now, src: "time added" };
+  }
+  function nameDate(n) {
+    const m = n.match(/(20\d\d)[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?:\D{0,4}?([01]\d|2[0-3])[-_.:h]?([0-5]\d)(?:[-_.:m]?([0-5]\d))?)?/);
+    return m ? new Date(+m[1], m[2] - 1, +m[3], m[4] ? +m[4] : 12, +(m[5] || 0), +(m[6] || 0)).getTime() : null;
+  }
+  async function exifDate(file) {
+    const v = new DataView(await file.slice(0, 131072).arrayBuffer());
+    if (v.getUint16(0) !== 0xffd8) return null;
+    let o = 2;
+    while (o + 10 < v.byteLength) {
+      const marker = v.getUint16(o), len = v.getUint16(o + 2);
+      if ((marker & 0xff00) !== 0xff00) return null;
+      if (marker === 0xffe1 && v.getUint32(o + 4) === 0x45786966) return tiffDate(v, o + 10);
+      o += 2 + len;
+    }
+    return null;
+  }
+  function tiffDate(v, t) {
+    const le = v.getUint16(t) === 0x4949;
+    const u16 = (p) => v.getUint16(p, le), u32 = (p) => v.getUint32(p, le);
+    const ifd = (p) => { const out = {}; for (let i = 0, n = u16(p); i < n; i++) { const e = p + 2 + i * 12; out[u16(e)] = { count: u32(e + 4), off: e + 8 }; } return out; };
+    const str = (ent) => { const p = ent.count > 4 ? t + u32(ent.off) : ent.off; let s = ""; for (let i = 0; i < ent.count - 1; i++) s += String.fromCharCode(v.getUint8(p + i)); return s; };
+    const ifd0 = ifd(t + u32(t + 4));
+    let s = null;
+    if (ifd0[0x8769]) { const ex = ifd(t + u32(ifd0[0x8769].off)); if (ex[0x9003]) s = str(ex[0x9003]); }
+    if (!s && ifd0[0x0132]) s = str(ifd0[0x0132]);
+    const m = s && s.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);
+    return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : null;
   }
 
   function renderMembers() {
@@ -500,6 +698,11 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   }
   async function save() {
     const btn = $("#save-all");
+    if (cards.length && !btn.dataset.confirm) {
+      btn.dataset.confirm = "1";
+      btn.textContent = `Save anyway (${cards.length} queued screenshot${cards.length > 1 ? "s" : ""} will be dropped)`;
+      return;
+    }
     btn.disabled = true; btn.textContent = "Saving…";
     try {
       await artifactApi.publish(buildHtml(data));
@@ -529,7 +732,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   document.addEventListener("paste", (e) => {
     if (!unlocked) return;
     const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith("image/"));
-    if (files.length) { e.preventDefault(); files.forEach(addCard); }
+    if (files.length) { e.preventDefault(); addFiles(files); }
   });
   render();
   renderEditor();
@@ -540,8 +743,10 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     window.claude.use("artifact").then((a) => { artifactApi = a; if (unlocked) renderEditor(); });
     window.claude.use("sample").then(async (s) => {
       sampleApi = s;
-      if (s) { try { sampleImages = !!(await s.limits()).images; } catch { sampleImages = false; } }
+      if (s) { try { sampleLimits = await s.limits(); sampleImages = !!sampleLimits.images; } catch { sampleImages = false; } }
+      sampleReady = true;
       if (unlocked) { renderEditor(); }
+      pump();
     });
   }
 })();
