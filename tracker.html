@@ -242,7 +242,10 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       <div class="tile"><span class="eyebrow">${XP_SVG}XP earned this period</span><span class="big num xp">${fmt(sumX)}</span></div>
       <div class="tile"><span class="eyebrow">Members updated this period</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
 
-    $("#board-note").textContent = `Period gains count from each member's last screenshot before ${shortDate(p.start)}.` + (dirty ? " Showing unsaved changes." : "");
+    const pre = Date.now() < p.start; // before the very first period has begun
+    $("#board-note").textContent = (pre
+      ? `The first period starts ${dateFmt(p.start, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. Screenshots added before then are each member's starting point.`
+      : `Period gains count from each member's last screenshot before ${shortDate(p.start)}.`) + (dirty ? " Showing unsaved changes." : "");
 
     const val = (r, k) => (k === "name" ? r.name.toLowerCase() : r[k] ?? -Infinity);
     rows.sort((a, b) => {
@@ -259,13 +262,15 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       $("#board").innerHTML = `<tbody><tr><td colspan="7"><div class="empty"><h3>No members yet</h3><p class="muted">Unlock the editor at the bottom of the page and add a clan member screenshot to start.</p></div></td></tr></tbody>`;
       return;
     }
-    const gainCell = (v, cls, r) => v == null
+    const gainCell = (v, cls, r) => pre
+      ? `<td class="num muted" title="Starting point for the first period">start</td>`
+      : v == null
       ? `<td class="num muted" title="First screenshot. Gains show from the next one.">new</td>`
       : `<td class="num gain ${v === 0 ? "zero" : cls}">${v === 0 ? "0" : signed(v)}</td>`;
     $("#board").innerHTML = `<thead><tr><th scope="col">#</th>${th}</tr></thead><tbody>` + rows.map((r, i) => `
       <tr>
         <td class="rankno">${i + 1}</td>
-        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip ${/leader/i.test(r.rank) ? "leader" : ""}">${esc(r.rank)}</span>` : ""} ${!r.updated ? `<span class="chip warn">no update this period</span>` : ""}</span></div></td>
+        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip ${/leader/i.test(r.rank) ? "leader" : ""}">${esc(r.rank)}</span>` : ""} ${!r.updated && !pre ? `<span class="chip warn">no update this period</span>` : ""}</span></div></td>
         ${gainCell(r.pGems, "gem", r)}
         ${gainCell(r.pXp, "xp", r)}
         <td class="num">${fmt(r.gems)}</td>
@@ -333,6 +338,14 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           <div id="members" class="cards"></div>
         </div>
         <div class="panel">
+          <h2>Your username</h2>
+          <p class="small muted">"Personal Clan Stats" screenshots don't show a name, so they're filed under this member.</p>
+          <div class="row">
+            <input type="text" id="self-name" list="member-names" value="${esc(data.selfName || "")}" placeholder="Your in-game name" aria-label="Your in-game username">
+            <button type="button" id="self-save">Use this name</button>
+          </div>
+        </div>
+        <div class="panel">
           <h2>Deadline</h2>
           <div class="row">
             <label class="small" for="anchor">A deadline (UTC)</label>
@@ -350,6 +363,13 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     drop.addEventListener("dragleave", () => drop.classList.remove("over"));
     drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
     $("#anchor").onchange = (e) => { const v = Date.parse(e.target.value + ":00Z"); if (!isNaN(v)) { data.anchor = new Date(v).toISOString(); change(); } };
+    $("#self-save").onclick = () => {
+      const v = $("#self-name").value.trim();
+      if (v === (data.selfName || "")) return;
+      data.selfName = v;
+      cards.filter((c) => c.personal && !c.name.trim()).forEach((c) => { c.name = v; c.problems = c.problems.filter((t) => !t.includes("username")); });
+      change();
+    };
     $("#plen").onchange = (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= 90) { data.periodDays = v; change(); } };
     if (dirty) {
       $("#save-all").onclick = save;
@@ -361,54 +381,137 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   function change() { dirty++; render(); renderEditor(); }
 
-  // ---------- reading a member popup (shared with the offline test script) ----------
-  // Shared OCR logic: works on {data,width,height} RGBA images.
-  function crop(img, r, scale, mode) {
+  // ---------- reading a member popup (kept in sync with the offline test script) ----------
+  // Reads a Pixel Worlds clan member popup ("member info" or "Personal Clan Stats").
+  // Works on {data,width,height} RGBA images; recognize(image, {psm, whitelist}) runs Tesseract.
+  //
+  // 1. Find the column of four white value boxes (Rank, Age, donated, contributed) by shape.
+  // 2. Read each box from a tight, cleaned-up crop, several times at different sizes, and vote.
+  // 3. Read the banner above the boxes: a username, or "Personal Clan Stats" for your own stats.
+  // If the boxes can't be found, fall back to finding the "donated"/"contributed" words on the page.
+
+  function resample(img, scale) {
+    const W = Math.max(1, Math.round(img.width * scale)), H = Math.max(1, Math.round(img.height * scale));
+    const out = new Uint8ClampedArray(W * H * 4), s = img.data, iw = img.width;
+    for (let y = 0; y < H; y++) {
+      const fy = Math.max(0, (y + 0.5) / scale - 0.5), iy = Math.min(img.height - 2, Math.floor(fy)), ay = Math.min(1, fy - iy);
+      for (let x = 0; x < W; x++) {
+        const fx = Math.max(0, (x + 0.5) / scale - 0.5), ix = Math.min(iw - 2, Math.floor(fx)), ax = Math.min(1, fx - ix);
+        const p00 = (iy * iw + ix) * 4, p10 = p00 + 4, p01 = p00 + iw * 4, p11 = p01 + 4, o = (y * W + x) * 4;
+        for (let c = 0; c < 4; c++) out[o + c] = (s[p00 + c] * (1 - ax) + s[p10 + c] * ax) * (1 - ay) + (s[p01 + c] * (1 - ax) + s[p11 + c] * ax) * ay;
+      }
+    }
+    return { data: out, width: W, height: H };
+  }
+
+  function sub(img, r) {
     const x0 = Math.max(0, Math.round(r.x0)), y0 = Math.max(0, Math.round(r.y0));
     const x1 = Math.min(img.width, Math.round(r.x1)), y1 = Math.min(img.height, Math.round(r.y1));
-    const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-    const W = Math.round(w * scale), H = Math.round(h * scale);
-    const out = new Uint8ClampedArray(W * H * 4);
-    const px = (sx, sy, c) => img.data[(sy * img.width + sx) * 4 + c];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      // bilinear sample so upscaled text keeps smooth edges before thresholding
-      const fx = Math.max(0, x0 + (x + 0.5) / scale - 0.5), fy = Math.max(0, y0 + (y + 0.5) / scale - 0.5);
-      const ix = Math.min(img.width - 2, Math.floor(fx)), iy = Math.min(img.height - 2, Math.floor(fy));
-      const ax = Math.min(1, fx - ix), ay = Math.min(1, fy - iy);
-      const s3 = [0, 1, 2].map((c) => (px(ix, iy, c) * (1 - ax) + px(ix + 1, iy, c) * ax) * (1 - ay) + (px(ix, iy + 1, c) * (1 - ax) + px(ix + 1, iy + 1, c) * ax) * ay);
-      const [R, G, B] = s3;
-      let ink;
-      if (mode === "light") ink = Math.min(R, G, B) > 215; // white text on a coloured banner
-      else ink = (R * 0.3 + G * 0.59 + B * 0.11) < 170;     // dark text on a white box
-      const o = (y * W + x) * 4, v = ink ? 0 : 255;
-      out[o] = out[o + 1] = out[o + 2] = v; out[o + 3] = 255;
+    const w = Math.max(2, x1 - x0), h = Math.max(2, y1 - y0), out = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      const sy = Math.min(img.height - 1, y0 + y);
+      out.set(img.data.subarray((sy * img.width + x0) * 4, (sy * img.width + Math.min(img.width, x0 + w)) * 4), y * w * 4);
     }
-    // pad with white so text doesn't touch the edge
-    const P = 12, PW = W + 2 * P, PH = H + 2 * P, pad = new Uint8ClampedArray(PW * PH * 4).fill(255);
-    for (let y = 0; y < H; y++) pad.set(out.subarray(y * W * 4, (y + 1) * W * 4), ((y + P) * PW + P) * 4);
-    return { data: pad, width: PW, height: PH };
+    return { data: out, width: w, height: h };
   }
-  // Within a tall search area, find the band of rows that holds the most text and return a tight rectangle around it.
-  function textBand(img, r, mode, rowH) {
-    const b = crop(img, r, 1, mode), P = 12;
-    const rows = [];
-    for (let y = P; y < b.height - P; y++) {
-      let n = 0;
-      for (let x = P; x < b.width - P; x++) if (b.data[(y * b.width + x) * 4] === 0) n++;
-      rows.push(n);
+
+  // Black text on white, padded. mode "dark": dark ink on a light box (Otsu threshold).
+  // mode "light": white ink on a coloured banner (fixed cutoff `cut`).
+  function binarize(img, mode, cut, thin) {
+    const n = img.width * img.height, g = new Uint8Array(n);
+    for (let i = 0, p = 0; i < n; i++, p += 4) {
+      const r = img.data[p], gg = img.data[p + 1], b = img.data[p + 2];
+      g[i] = mode === "light" ? Math.min(r, gg, b) : Math.round(r * 0.3 + gg * 0.59 + b * 0.11);
     }
-    const minInk = 2, gap = Math.max(2, Math.round(rowH * 0.15));
-    let best = null, cur = null, quiet = 0;
-    rows.forEach((n, y) => {
-      if (n >= minInk) { if (!cur) cur = { y0: y, y1: y, ink: 0 }; cur.y1 = y; cur.ink += n; quiet = 0; }
-      else if (cur && ++quiet > gap) { if (!best || cur.ink > best.ink) best = cur; cur = null; quiet = 0; }
-    });
-    if (cur && (!best || cur.ink > best.ink)) best = cur;
-    if (!best) return r;
-    const pad = rowH * 0.25;
-    return { x0: r.x0, x1: r.x1, y0: Math.max(r.y0, r.y0 + best.y0 - pad), y1: r.y0 + best.y1 + pad };
+    let t = cut;
+    if (mode === "dark") {
+      const hist = new Array(256).fill(0);
+      for (let i = 0; i < n; i++) hist[g[i]]++;
+      let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
+      let sB = 0, wB = 0, best = -1; t = 128;
+      for (let i = 0; i < 256; i++) {
+        wB += hist[i]; if (!wB) continue;
+        const wF = n - wB; if (!wF) break;
+        sB += i * hist[i];
+        const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) * (mB - mF);
+        if (v > best) { best = v; t = i; }
+      }
+      t = Math.min(t, 200) - (thin || 0);
+    }
+    const P = Math.max(10, Math.round(img.height * 0.25)), W = img.width + 2 * P, H = img.height + 2 * P;
+    const out = new Uint8ClampedArray(W * H * 4).fill(255);
+    for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+      const v = g[y * img.width + x], ink = mode === "light" ? v > t : v <= t;
+      if (ink) { const o = ((y + P) * W + x + P) * 4; out[o] = out[o + 1] = out[o + 2] = 0; }
+    }
+    return { data: out, width: W, height: H };
   }
-  const digits = (s) => (s || "").replace(/[Oo]/g, "0").replace(/[Il|]/g, "1").replace(/\D/g, "");
+
+  // Connected white regions shaped like the value boxes.
+  // Tries a few whiteness cutoffs, starting just under the brightest white in the picture, so dim or
+  // over-compressed screenshots still work and boxes that sit close together don't melt into one.
+  function findValueBoxes(img) {
+    const scale = Math.min(1, 1600 / img.width);
+    const im = scale < 1 ? resample(img, scale) : img;
+    const d = im.data, N = im.width * im.height, hist = new Uint32Array(256);
+    for (let p = 0; p < N * 4; p += 4) {
+      const mn = Math.min(d[p], d[p + 1], d[p + 2]), mx = Math.max(d[p], d[p + 1], d[p + 2]);
+      if (mx - mn < 24) hist[mn]++;
+    }
+    let acc = 0, peak = 255;
+    for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= N * 0.004) { peak = v; break; } }
+    const tried = new Set();
+    for (const cut of [peak - 14, 240, 222, peak - 32, peak - 50, 200]) {
+      const c = Math.max(120, Math.min(250, Math.round(cut)));
+      if (tried.has(c)) continue;
+      tried.add(c);
+      const found = boxesAt(im, c);
+      if (found) return found.map((b) => ({ x0: b.x0 / scale, x1: b.x1 / scale, y0: b.y0 / scale, y1: b.y1 / scale, w: b.w / scale, h: b.h / scale }));
+    }
+    return null;
+  }
+  function boxesAt(im, cut) {
+    const W = im.width, H = im.height, d = im.data, N = W * H;
+    const mask = new Uint8Array(N);
+    for (let i = 0, p = 0; i < N; i++, p += 4) {
+      const mn = Math.min(d[p], d[p + 1], d[p + 2]), mx = Math.max(d[p], d[p + 1], d[p + 2]);
+      mask[i] = mn > cut && mx - mn < 24 ? 1 : 0;
+    }
+    const seen = new Uint8Array(N), stack = new Int32Array(N), comps = [];
+    for (let s = 0; s < N; s++) {
+      if (!mask[s] || seen[s]) continue;
+      let top = 0, count = 0, x0 = W, x1 = 0, y0 = H, y1 = 0;
+      stack[top++] = s; seen[s] = 1;
+      while (top) {
+        const i = stack[--top], x = i % W, y = (i - x) / W;
+        count++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        if (x > 0 && mask[i - 1] && !seen[i - 1]) { seen[i - 1] = 1; stack[top++] = i - 1; }
+        if (x < W - 1 && mask[i + 1] && !seen[i + 1]) { seen[i + 1] = 1; stack[top++] = i + 1; }
+        if (y > 0 && mask[i - W] && !seen[i - W]) { seen[i - W] = 1; stack[top++] = i - W; }
+        if (y < H - 1 && mask[i + W] && !seen[i + W]) { seen[i + W] = 1; stack[top++] = i + W; }
+      }
+      const w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (h >= 8 && w >= 30 && w / h >= 2.5 && w / h <= 10 && count / (w * h) >= 0.55) comps.push({ x0, x1: x1 + 1, y0, y1: y1 + 1, w, h });
+    }
+    // Four boxes in one column, same width and height, evenly spaced.
+    comps.sort((a, b) => a.y0 - b.y0);
+    let found = null;
+    for (const a of comps) {
+      // Left edges line up; a box's right part can be cut off where its text touches the border.
+      const col = comps.filter((c) => Math.abs(c.x0 - a.x0) <= Math.max(3, a.h * 0.3) && c.w >= a.w * 0.45 && c.w <= a.w * 2.2 && Math.abs(c.h - a.h) <= a.h * 0.3 && c.y0 >= a.y0);
+      if (col.length < 4) continue;
+      const g = col[1].y0 - col[0].y0;
+      if (g < a.h || g > a.h * 2.2) continue;
+      if ([2, 3].every((k) => Math.abs(col[k].y0 - col[k - 1].y0 - g) <= g * 0.2)) { found = col.slice(0, 4); break; }
+    }
+    if (found) {
+      const x1 = Math.max(...found.map((b) => b.x1));
+      found = found.map((b) => ({ ...b, x1, w: x1 - b.x0 }));
+    }
+    return found;
+  }
+
+  const digitsOf = (s) => (s || "").replace(/[Oo]/g, "0").replace(/[Il|]/g, "1").replace(/\D/g, "");
   function lev(a, b) {
     const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
     for (let j = 1; j <= b.length; j++) d[0][j] = j;
@@ -418,78 +521,175 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   }
   function closest(s, list, maxRatio) {
     let best = null, bd = Infinity;
-    for (const c of list) { const d = lev(s.toLowerCase(), c.toLowerCase()); if (d < bd) { bd = d; best = c; } }
+    for (const c of list) { const dd = lev(s.toLowerCase(), c.toLowerCase()); if (dd < bd) { bd = dd; best = c; } }
     return best && bd <= Math.max(1, Math.floor(best.length * maxRatio)) ? best : null;
   }
   const RANKS = ["Leader", "Co-Leader", "Elder", "Veteran", "Member", "Recruit"];
 
-  // recognize(image, {psm, whitelist}) -> {text, confidence, lines:[{text,bbox,words:[{text,bbox}]}]}
-  function scaleWhole(img, scale) {
-    const W = Math.round(img.width * scale), H = Math.round(img.height * scale), out = new Uint8ClampedArray(W * H * 4);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const fx = Math.max(0, (x + 0.5) / scale - 0.5), fy = Math.max(0, (y + 0.5) / scale - 0.5);
-      const ix = Math.min(img.width - 2, Math.floor(fx)), iy = Math.min(img.height - 2, Math.floor(fy));
-      const ax = Math.min(1, fx - ix), ay = Math.min(1, fy - iy);
-      for (let c = 0; c < 4; c++) {
-        const p = (xx, yy) => img.data[(yy * img.width + xx) * 4 + c];
-        out[(y * W + x) * 4 + c] = (p(ix, iy) * (1 - ax) + p(ix + 1, iy) * ax) * (1 - ay) + (p(ix, iy + 1) * (1 - ax) + p(ix + 1, iy + 1) * ax) * ay;
-      }
+  // Inside a box, the text sits right-aligned; trim the box border before reading.
+  function inner(b) { const m = Math.max(2, b.h * 0.12); return { x0: b.x0 + m, x1: b.x1 - m, y0: b.y0 + m, y1: b.y1 - m }; }
+
+  async function readNumber(img, box, recognize) {
+    const r = inner(box), base = sub(img, r);
+    // The game groups digits in threes ("1 573 330"). Tesseract often drops the spaces, so the groups are
+    // measured from the pixels instead, giving the digit count every read has to match.
+    const reads = [], tally = {};
+    let expected = null; // {min, max} digits
+    // Each size is also read with thinner strokes, which keeps blurred digits like "33" apart.
+    for (const [target, thin] of [[48, 0], [48, 40], [34, 0], [64, 40], [64, 0], [40, 40], [56, 0], [34, 40]]) {
+      const im = binarize(resample(base, target / base.height), "dark", 0, thin);
+      if (expected === null) expected = digitCount(im);
+      const t = await recognize(im, { psm: 7, whitelist: "0123456789 " });
+      const v = digitsOf(t.text);
+      const fits = v.length >= expected.min && v.length <= expected.max;
+      reads.push({ v, fits });
+      if (fits) tally[v] = (tally[v] || 0) + 1;
+      const ranked = Object.entries(tally).sort((x, y) => y[1] - x[1]);
+      // Stop early once three reads agree and none disagree; otherwise read at every size.
+      if (ranked.length === 1 && ranked[0][1] >= 3) return { value: ranked[0][0], sure: true };
     }
-    return { data: out, width: W, height: H };
+    const ranked = Object.entries(tally).sort((x, y) => y[1] - x[1]);
+    if (ranked.length && ranked[0][1] >= 3 && ranked[0][1] >= 3 * (ranked[1] ? ranked[1][1] : 0)) return { value: ranked[0][0], sure: true };
+    // No clear winner: offer the most common read and ask for a check.
+    return { value: ranked.length ? ranked[0][0] : (reads.find((r) => r.v) || { v: "" }).v, sure: false };
+  }
+
+  // Range of digit counts implied by the spacing of ink in a binarized number box.
+  function digitCount(im) {
+    const W = im.width, H = im.height, col = new Uint16Array(W);
+    let top = H, bottom = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (im.data[(y * W + x) * 4] === 0) { col[x]++; if (y < top) top = y; if (y > bottom) bottom = y; }
+    const th = bottom - top + 1;
+    const unknown = { min: 1, max: 15 };
+    if (th < 4) return unknown;
+    const runs = [];
+    let cur = null;
+    for (let x = 0; x < W; x++) {
+      if (col[x] > 0) { if (!cur) cur = { x0: x, x1: x }; cur.x1 = x; }
+      else if (cur) { runs.push(cur); cur = null; }
+    }
+    if (cur) runs.push(cur);
+    if (!runs.length) return unknown;
+    const groups = [{ x0: runs[0].x0, x1: runs[0].x1 }];
+    for (let i = 1; i < runs.length; i++) {
+      const g = groups[groups.length - 1];
+      if (runs[i].x0 - g.x1 > th * 0.28) groups.push({ x0: runs[i].x0, x1: runs[i].x1 }); else g.x1 = runs[i].x1;
+    }
+    if (groups.length < 2) return groups[0].x1 - groups[0].x0 + 1 < th * 2.3 ? { min: 1, max: 3 } : unknown;
+    // Groups after the first hold 3 digits each; a narrow "1" makes widths vary, so only the first group's size is estimated.
+    const later = groups.slice(1).map((g) => g.x1 - g.x0 + 1).sort((a, b) => a - b);
+    const w3 = later[later.length - 1];
+    const k = Math.max(1, Math.min(3, Math.round((groups[0].x1 - groups[0].x0 + 1) / (w3 / 3))));
+    const n = 3 * (groups.length - 1);
+    return later.every((w) => w > w3 * 0.55) ? { min: n + Math.max(1, k - 1), max: n + Math.min(3, k + 1) } : unknown;
+  }
+
+  async function readWords(img, r, mode, recognize, targetH, whitelist, cut) {
+    const base = sub(img, r);
+    const im = binarize(resample(base, targetH / base.height), mode, cut);
+    return recognize(im, { psm: 7, whitelist });
+  }
+
+  // The band of rows holding the most white text inside a search area.
+  function textBand(img, r, rowH) {
+    const b = sub(img, r), rows = [];
+    for (let y = 0; y < b.height; y++) {
+      let n = 0;
+      for (let x = 0; x < b.width; x++) { const p = (y * b.width + x) * 4; if (Math.min(b.data[p], b.data[p + 1], b.data[p + 2]) > 215) n++; }
+      rows.push(n);
+    }
+    const gap = Math.max(2, Math.round(rowH * 0.15));
+    let best = null, cur = null, quiet = 0;
+    rows.forEach((n, y) => {
+      if (n >= 2) { if (!cur) cur = { y0: y, y1: y, ink: 0 }; cur.y1 = y; cur.ink += n; quiet = 0; }
+      else if (cur && ++quiet > gap) { if (!best || cur.ink > best.ink) best = cur; cur = null; quiet = 0; }
+    });
+    if (cur && (!best || cur.ink > best.ink)) best = cur;
+    if (!best) return r;
+    const pad = rowH * 0.2;
+    return { x0: r.x0, x1: r.x1, y0: Math.max(r.y0, r.y0 + best.y0 - pad), y1: Math.min(r.y1, r.y0 + best.y1 + pad) };
+  }
+
+  const NAME_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-. ";
+  async function readBanner(img, rankBox, recognize, knownNames) {
+    const h = rankBox.h, cx = rankBox.x1, half = rankBox.w * 1.45;
+    const area = { x0: cx - half, x1: cx + half, y0: rankBox.y0 - h * 4.6, y1: rankBox.y0 - h * 1.1 };
+    const band = textBand(img, area, h);
+    let best = null;
+    for (const cut of [215, 235, 195]) {
+      const t = await readWords(img, band, "light", recognize, 56, NAME_CHARS, cut);
+      const text = t.text.replace(/\s+/g, " ").trim();
+      if (!best || t.confidence > best.confidence) best = { text, confidence: t.confidence };
+      if (t.confidence >= 90) break;
+    }
+    const flat = best.text.replace(/\s+/g, "");
+    if (/personal|clanstat/i.test(flat) || lev(flat.toLowerCase(), "personalclanstats") <= 4) return { personal: true };
+    const raw = flat.replace(/[^\w.\-]/g, "");
+    const known = knownNames || [];
+    const snap = closest(raw, known, 0.25)
+      || known.filter((k) => k.length >= 4 && raw.toLowerCase().includes(k.toLowerCase())).sort((a, b) => b.length - a.length)[0] || null;
+    return { name: snap || raw, sure: !!snap || (best.confidence >= 85 && raw.length > 0), known: !!snap };
   }
 
   async function readMemberShot(img, recognize, knownNames) {
-    // Small screenshots are enlarged so the game's text is big enough to read.
-    if (img.width < 1800) img = scaleWhole(img, 2000 / img.width);
-    const full = await recognize(img, { psm: 3 });
-    const lines = full.lines;
-    const find = (re) => lines.find((l) => re.test(l.text));
-    const don = find(/donat/i), con = find(/contrib/i), rank = find(/\bRank\b/i);
-    if (!don || !con) return { ok: false, why: "Couldn't find the donated and contributed rows. Is this a clan member popup?" };
-    const rowH = Math.max(12, con.bbox.y0 - don.bbox.y0);
-    const res = { ok: true, problems: [] };
-    // Numbers: the digit words to the right of the label on each row, re-read from a tight crop.
-    async function num(line, labelRe) {
-      const ws = line.words || [];
-      const li = ws.findIndex((w) => labelRe.test(w.text));
-      const after = ws.slice(li + 1);
-      const nw = [];
-      for (const w of after) { if (/\d/.test(w.text) && /^[^A-Za-z]*$|^[\dOoIl|,.']+$/.test(w.text)) nw.push(w); else if (nw.length) break; }
-      const fromLine = digits(nw.map((w) => w.text).join(""));
-      if (!nw.length) return { value: "", sure: false, right: null };
-      const box = { x0: Math.min(...nw.map((w) => w.bbox.x0)) - rowH * 0.3, x1: Math.max(...nw.map((w) => w.bbox.x1)) + rowH * 0.3,
-        y0: line.bbox.y0 - rowH * 0.15, y1: line.bbox.y1 + rowH * 0.15 };
-      box.y0 = Math.min(...nw.map((w) => w.bbox.y0)) - rowH * 0.2; box.y1 = Math.max(...nw.map((w) => w.bbox.y1)) + rowH * 0.2;
-      const again = await recognize(crop(img, box, 3, "dark"), { psm: 7, whitelist: "0123456789 " });
-      const second = digits(again.text);
-      return { value: second || fromLine, sure: !!second && second === fromLine, right: box.x1 };
-    }
-    const g = await num(don, /donat/i), x = await num(con, /contrib/i);
+    if (img.width < 1600) img = resample(img, 1600 / img.width); // small screenshots: enlarge first
+    const boxes = findValueBoxes(img);
+    if (!boxes) return readByLabels(img, recognize, knownNames);
+    const [rankB, , gemsB, xpB] = boxes;
+    const res = { ok: true, problems: [], method: "boxes" };
+    const g = await readNumber(img, gemsB, recognize), x = await readNumber(img, xpB, recognize);
     res.gems = g.value; res.xp = x.value;
     if (!g.sure) res.problems.push("Check the gems number");
     if (!x.sure) res.problems.push("Check the XP number");
-    const labelX0 = Math.min(don.bbox.x0, con.bbox.x0);
-    const boxRight = Math.max(g.right || 0, x.right || 0) || labelX0 + rowH * 10.5;
-    // Rank: value box on the Rank row.
-    const rankY = rank ? rank.bbox : { y0: don.bbox.y0 - rowH * 2.1, y1: don.bbox.y1 - rowH * 2.1 };
-    const rk = await recognize(crop(img, { x0: labelX0 + rowH * 4.4, x1: boxRight, y0: rankY.y0 - rowH * 0.2, y1: rankY.y1 + rowH * 0.2 }, 3, "dark"), { psm: 7 });
-    const rankWords = rk.text.replace(/[^A-Za-z\- ]/g, " ").split(/\s+/).filter((t) => t.length > 2);
-    let rankHit = null;
-    for (const t of rankWords.slice().reverse()) { rankHit = closest(t, RANKS, 0.34); if (rankHit) break; }
-    res.rank = rankHit || rankWords.slice(-1)[0] || "";
-    // Username: white outlined text in the banner above the Rank row, centred on the popup.
-    const cx = (labelX0 + Math.max(con.bbox.x1, boxRight + rowH * 9)) / 2;
-    const band = textBand(img, { x0: cx - rowH * 6.5, x1: cx + rowH * 6.5, y0: rankY.y0 - rowH * 4.5, y1: rankY.y0 - rowH * 1.3 }, "light", rowH);
-    const nm = await recognize(crop(img, band, 2, "light"), { psm: 7 });
-    const rawName = nm.text.replace(/\s+/g, "").replace(/[^\w.\-]/g, "");
-    const known = knownNames || [];
-    const snap = closest(rawName, known, 0.25)
-      || known.filter((k) => k.length >= 4 && rawName.toLowerCase().includes(k.toLowerCase())).sort((a, b) => b.length - a.length)[0] || null;
-    res.name = snap || rawName;
-    res.nameConf = nm.confidence;
-    if (!snap && (nm.confidence < 85 || !rawName)) res.problems.push("Check the username");
+    const rk = await readWords(img, inner(rankB), "dark", recognize, 48, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-");
+    const words = rk.text.split(/\s+/).filter((t) => t.length > 2);
+    let hit = null;
+    for (const t of words.slice().reverse()) { hit = closest(t, RANKS, 0.45); if (hit) break; }
+    res.rank = hit || words.slice(-1)[0] || "";
+    const ban = await readBanner(img, rankB, recognize, knownNames);
+    if (ban.personal) { res.personal = true; res.name = ""; }
+    else { res.name = ban.name; if (!ban.sure) res.problems.push("Check the username"); }
     return res;
   }
+
+  // Fallback: find the "donated" / "contributed" words on the whole screenshot.
+  async function readByLabels(img, recognize, knownNames) {
+    const full = await recognize(img, { psm: 3 });
+    const lines = full.lines;
+    const find = (re) => lines.find((l) => re.test(l.text));
+    const don = find(/d[o0]n[a-z]{2}ed|donat/i), con = find(/c[o0]ntr[a-z]{2,4}ted|contrib/i), rank = find(/\bRank\b|Rank:/i);
+    if (!don || !con) return { ok: false, why: "Couldn't find the donated and contributed boxes. Is this a clan member or Personal Clan Stats popup?" };
+    const rowH = Math.max(12, con.bbox.y0 - don.bbox.y0);
+    // Boxes sit to the right of the labels; build them from the number words' extents.
+    const numBox = (line) => {
+      const ws = (line.words || []).filter((w) => /\d/.test(w.text));
+      if (!ws.length) return null;
+      const x1 = Math.max(...ws.map((w) => w.bbox.x1)) + rowH * 0.3;
+      return { x0: x1 - rowH * 5.2, x1, y0: line.bbox.y0 - rowH * 0.25, y1: line.bbox.y0 + rowH * 0.8, w: rowH * 5.2, h: rowH * 1.05 };
+    };
+    const gb = numBox(don), xb = numBox(con);
+    const res = { ok: true, problems: [], method: "labels" };
+    const g = gb ? await readNumber(img, gb, recognize) : { value: "", sure: false };
+    const x = xb ? await readNumber(img, xb, recognize) : { value: "", sure: false };
+    res.gems = g.value; res.xp = x.value;
+    if (!g.sure) res.problems.push("Check the gems number");
+    if (!x.sure) res.problems.push("Check the XP number");
+    const ref = gb || xb;
+    if (ref) {
+      const rankB = { x0: ref.x0, x1: ref.x1, w: ref.w, h: ref.h, y0: (rank ? rank.bbox.y0 : don.bbox.y0 - rowH * 2) - rowH * 0.25, y1: 0 };
+      rankB.y1 = rankB.y0 + ref.h;
+      const rk = await readWords(img, inner(rankB), "dark", recognize, 48, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-");
+      const words = rk.text.split(/\s+/).filter((t) => t.length > 2);
+      let hit = null;
+      for (const t of words.slice().reverse()) { hit = closest(t, RANKS, 0.45); if (hit) break; }
+      res.rank = hit || "";
+      const ban = await readBanner(img, rankB, recognize, knownNames);
+      if (ban.personal) { res.personal = true; res.name = ""; }
+      else { res.name = ban.name; if (!ban.sure) res.problems.push("Check the username"); }
+    } else { res.rank = ""; res.name = ""; res.problems.push("Check the username"); }
+    return res;
+  }
+
 
   // ---------- screenshot queue ----------
   // Each screenshot becomes a card: queued -> reading -> done | failed. Manual cards start as "manual".
@@ -590,6 +790,11 @@ importScripts(${JSON.stringify(TESS + "worker.min.js")});`;
       else {
         applyRead(c, r);
         c.problems = r.problems;
+        c.personal = !!r.personal;
+        if (r.personal) {
+          c.name = data.selfName || "";
+          if (!c.name) c.problems.push("Personal stats: type your username");
+        }
         c.status = "done"; c.msg = "";
         c.open = issues(c).block.length > 0;
         drawCard(c);
@@ -606,7 +811,8 @@ importScripts(${JSON.stringify(TESS + "worker.min.js")});`;
   const PROMPT = `This is a screenshot from the game Pixel Worlds showing a clan member's info popup.
 The member's username is in the blue banner at the top of the popup. Below it are rows for Rank, Age, "donated" (next to a gem/diamond icon) and "contributed" (next to an XP icon).
 Numbers use spaces as thousand separators, e.g. "1 573 330" means 1573330.
-Reply with only this JSON: {"username": string|null, "rank": string|null, "gems": integer|null, "xp": integer|null}
+If the banner says "Personal Clan Stats" instead of a name, it's the player's own stats: set username to null and personal to true.
+Reply with only this JSON: {"username": string|null, "personal": boolean, "rank": string|null, "gems": integer|null, "xp": integer|null}
 gems = the donated number, xp = the contributed number. Copy the username exactly as shown. Use null for anything you cannot read clearly, and all nulls if this is not a clan member popup.`;
 
   async function fitImage(file) {
@@ -628,6 +834,8 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
       const toInt = (v) => (v == null ? "" : String(v).replace(/\D/g, ""));
       applyRead(c, { name: r && r.username ? String(r.username).trim() : "", rank: r && r.rank ? String(r.rank).trim() : "", gems: toInt(r && r.gems), xp: toInt(r && r.xp) });
       c.problems = [];
+      c.personal = !!(r && r.personal);
+      if (c.personal) c.name = data.selfName || "";
       c.status = "done";
       c.msg = c.name || c.gems || c.xp ? "Read by Claude. Check it against the image, then add it." : "Claude says this doesn't look like a clan member popup.";
       c.open = true;
@@ -654,6 +862,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     if (c.xp === "") block.push("XP missing");
     if (isNaN(Date.parse(c.when))) block.push("Date missing");
     const m = data.members.find((x) => key(x.name) === key(c.name));
+    if (c.personal) info.push("Personal Clan Stats");
     if (c.name.trim() && !m) info.push("New member");
     if (m && m.entries.length) {
       const last = m.entries.slice().sort((a, b) => Date.parse(a.t) - Date.parse(b.t)).pop();
@@ -801,6 +1010,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     list.forEach((c) => {
       const t = Date.parse(c.when);
       const name = c.name.trim();
+      if (c.personal && !data.selfName) data.selfName = name;
       let m = data.members.find((x) => key(x.name) === key(name));
       if (!m) { m = { name, rank: "", entries: [] }; data.members.push(m); }
       if (c.rank.trim()) m.rank = c.rank.trim();
