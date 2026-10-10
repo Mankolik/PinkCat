@@ -1,0 +1,548 @@
+<title>Pink Cat Clan Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Nunito:wght@500;700;800&display=swap">
+<style id="app-style">
+/* Layout: one column of game-style panels; leaderboard first, editor last, countdown pinned to the bottom edge. Deliberately dark, like the in-game UI. */
+:root {
+  --bg: #0d1820;
+  --panel: #152532;
+  --panel-2: #1b3040;
+  --line: #27445a;
+  --fg: #e6f0f5;
+  --muted: #8aa5b6;
+  --gem: #4fd0ff;
+  --xp: #a8e03a;
+  --gold: #f2c443;
+  --pink: #ff8ccf;
+  --bad: #ff7a6b;
+  --font-display: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 120px; display: grid; gap: 22px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: .02em; }
+h1 { font-size: clamp(28px, 6vw, 42px); line-height: 1.05; }
+h1 .tag { color: var(--pink); }
+h2 { font-size: 22px; }
+h3 { font-size: 17px; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 800; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gem { color: var(--gem); }
+.xp { color: var(--xp); }
+.ico { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+header.top .sub { margin-top: 6px; }
+.period-pick { display: grid; gap: 4px; }
+
+select, input, button { font: inherit; color: inherit; }
+select, input[type=text], input[type=password], input[type=number], input[type=datetime-local] {
+  background: var(--bg); border: 2px solid var(--line); border-radius: 6px; padding: 7px 10px; min-width: 0;
+}
+select:focus-visible, input:focus-visible, button:focus-visible, th button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button { cursor: pointer; border-radius: 6px; border: 2px solid var(--line); background: var(--panel-2); padding: 7px 14px; font-weight: 800; }
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--gold); border-color: var(--gold); color: #1d1503; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger { color: var(--bad); }
+button.link { background: none; border: 0; padding: 0; color: var(--gem); text-decoration: underline; font-weight: 700; }
+button:disabled { opacity: .5; cursor: default; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.tile .big { font-family: var(--font-display); font-size: 30px; line-height: 1.1; }
+
+.board { background: var(--panel); border: 3px solid var(--gold); border-radius: 12px; overflow: hidden; }
+.board-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; padding: 14px 16px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--line); }
+th:nth-child(1), td:nth-child(1), th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); white-space: nowrap; }
+th button { background: none; border: 0; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; }
+th button[aria-sort] { color: var(--fg); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: color-mix(in srgb, var(--panel-2) 70%, transparent); }
+td.rankno { color: var(--muted); font-family: var(--font-display); width: 1%; }
+.who { display: grid; gap: 1px; }
+.who b { font-size: 16px; }
+.chip { display: inline-block; font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.leader { color: var(--pink); border-color: var(--pink); }
+.chip.warn { color: var(--gold); border-color: var(--gold); }
+.gain { font-weight: 800; }
+.gain.zero { color: var(--muted); font-weight: 500; }
+.empty { padding: 28px 16px; text-align: center; display: grid; gap: 6px; justify-items: center; }
+
+.editor-gate { background: var(--panel); border: 2px dashed var(--line); border-radius: 10px; padding: 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.editor-gate form { display: flex; gap: 8px; flex-wrap: wrap; }
+.editor { display: grid; gap: 16px; }
+.panel { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.drop { border: 2px dashed var(--line); border-radius: 10px; padding: 22px 16px; text-align: center; display: grid; gap: 8px; justify-items: center; }
+.drop.over { border-color: var(--gem); background: color-mix(in srgb, var(--gem) 8%, transparent); }
+.cards { display: grid; gap: 12px; }
+.card { display: grid; grid-template-columns: 180px 1fr; gap: 14px; background: var(--bg); border: 2px solid var(--line); border-radius: 10px; padding: 12px; }
+.card img { width: 100%; border-radius: 6px; display: block; }
+.card .thumb { min-width: 0; }
+.card .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; min-width: 0; align-content: start; }
+.card label { display: grid; gap: 3px; font-size: 12px; font-weight: 800; color: var(--muted); }
+.card .status { grid-column: 1 / -1; font-size: 13px; }
+.card .actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.status.err { color: var(--bad); }
+.status.ok { color: var(--xp); }
+.notes { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 560px) { .card { grid-template-columns: 1fr; } .card .thumb { max-width: 220px; } }
+
+details.member { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+details.member summary { cursor: pointer; padding: 10px 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
+.entries td, .entries th { padding: 6px 8px; font-size: 13px; }
+
+.savebar { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 4; background: var(--gold); color: #1d1503; border-radius: 10px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; font-weight: 800; }
+.savebar button { border-color: #1d1503; }
+.savebar button.primary { background: #1d1503; color: var(--gold); }
+.savebar button.ghost { background: transparent; color: #1d1503; }
+
+.countdown { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--panel-2); border-top: 3px solid var(--gold); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.countdown .in { max-width: 1040px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+.clock { font-family: var(--font-display); font-size: clamp(22px, 5vw, 30px); font-variant-numeric: tabular-nums; color: var(--gold); white-space: nowrap; }
+.clock span { color: var(--muted); font-size: .6em; margin: 0 6px 0 2px; }
+
+@media (prefers-reduced-motion: no-preference) { .tile, .board { transition: border-color .2s; } }
+</style>
+
+<template id="shell-tpl">
+<main class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Pixel Worlds clan tracker</p>
+      <h1>Pink Cat <span class="tag">[PINK]</span></h1>
+      <p class="sub muted">Gems donated and XP contributed by every member, refreshed from in-game screenshots.</p>
+    </div>
+    <label class="period-pick small"><span class="eyebrow">Showing</span><select id="period-select"></select></label>
+  </header>
+
+  <section class="tiles" id="tiles" aria-label="Clan totals"></section>
+
+  <section class="board" aria-labelledby="board-title">
+    <div class="board-head">
+      <h2 id="board-title">Member leaderboard</h2>
+      <p class="small muted" id="board-note"></p>
+    </div>
+    <div class="scroll"><table id="board"></table></div>
+  </section>
+
+  <section id="editor-root" aria-label="Editor"></section>
+</main>
+<footer class="countdown" aria-live="off">
+  <div class="in">
+    <div>
+      <p class="eyebrow">Time left until the clan deadline</p>
+      <p class="small muted" id="deadline-text"></p>
+    </div>
+    <p class="clock" id="clock">-</p>
+  </div>
+</footer>
+</template>
+<div id="app"></div>
+<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816}]}]}</script>
+<script id="app-script">
+(function () {
+  const DAY = 864e5;
+  const SAVED = JSON.parse(document.getElementById("state").textContent);
+  let data = structuredClone(SAVED);
+  let dirty = 0;
+  let sortKey = "pGems", sortDir = -1;
+  let periodIdx = 0;
+  let unlocked = false;
+  let artifactApi = null, sampleApi = null, sampleImages = false;
+  let cards = [];
+  let cardSeq = 0;
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (n) => (n == null ? "-" : Math.round(n).toLocaleString("en-US").replace(/,/g, " "));
+  const signed = (n) => (n > 0 ? "+" : n < 0 ? "−" : "") + fmt(Math.abs(n));
+  const key = (name) => name.trim().toLowerCase();
+  const ss = { get(k) { try { return sessionStorage.getItem(k); } catch { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch {} }, del(k) { try { sessionStorage.removeItem(k); } catch {} } };
+
+  const GEM_SVG = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4 2h8l3 4-7 9-7-9z"/><path fill="#0d1820" opacity=".35" d="M1 6h14L8 15z"/></svg>';
+  const XP_SVG = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor"/><text x="8" y="11.2" text-anchor="middle" font-size="8" font-weight="900" font-family="sans-serif" fill="#0d1820">XP</text></svg>';
+
+  // ---------- periods ----------
+  function periodLen() { return data.periodDays * DAY; }
+  function currentEnd(now) {
+    const a = Date.parse(data.anchor), len = periodLen();
+    let k = Math.max(0, Math.ceil((now - a) / len));
+    let end = a + k * len;
+    if (end <= now) end += len;
+    return end;
+  }
+  function periods(now) {
+    const a = Date.parse(data.anchor), len = periodLen();
+    const out = [];
+    for (let end = currentEnd(now); end >= a; end -= len) out.push({ start: end - len, end, current: out.length === 0 });
+    return out;
+  }
+  const dateFmt = (ms, opts) => new Date(ms).toLocaleString(undefined, opts);
+  const shortDate = (ms) => dateFmt(ms, { day: "numeric", month: "short" });
+
+  function stats(m, p) {
+    const es = m.entries.slice().sort((x, y) => Date.parse(x.t) - Date.parse(y.t));
+    const upTo = es.filter((e) => Date.parse(e.t) < p.end);
+    if (!upTo.length) return null;
+    const latest = upTo[upTo.length - 1];
+    const before = upTo.filter((e) => Date.parse(e.t) < p.start);
+    const base = before.length ? before[before.length - 1] : upTo[0];
+    const updated = Date.parse(latest.t) >= p.start;
+    const baselineOnly = !before.length && latest === base;
+    return {
+      name: m.name, rank: m.rank, lastT: Date.parse(latest.t), updated, baselineOnly,
+      gems: latest.gems, xp: latest.xp,
+      pGems: baselineOnly ? null : latest.gems - base.gems,
+      pXp: baselineOnly ? null : latest.xp - base.xp,
+    };
+  }
+
+  // ---------- leaderboard ----------
+  function render() {
+    const ps = periods(Date.now());
+    if (periodIdx >= ps.length) periodIdx = 0;
+    const p = ps[periodIdx];
+    const sel = $("#period-select");
+    sel.innerHTML = ps.map((q, i) => `<option value="${i}">${q.current ? "Current period" : "Past period"}: ${shortDate(q.start)} to ${shortDate(q.end)}</option>`).join("");
+    sel.value = String(periodIdx);
+
+    const rows = data.members.map((m) => stats(m, p)).filter(Boolean);
+    const sumG = rows.reduce((s, r) => s + (r.pGems || 0), 0);
+    const sumX = rows.reduce((s, r) => s + (r.pXp || 0), 0);
+    const upd = rows.filter((r) => r.updated).length;
+    $("#tiles").innerHTML = `
+      <div class="tile"><span class="eyebrow">${GEM_SVG}Gems donated this period</span><span class="big num gem">${fmt(sumG)}</span></div>
+      <div class="tile"><span class="eyebrow">${XP_SVG}XP earned this period</span><span class="big num xp">${fmt(sumX)}</span></div>
+      <div class="tile"><span class="eyebrow">Members updated this period</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
+
+    $("#board-note").textContent = `Period gains count from each member's last screenshot before ${shortDate(p.start)}.` + (dirty ? " Showing unsaved changes." : "");
+
+    const val = (r, k) => (k === "name" ? r.name.toLowerCase() : r[k] ?? -Infinity);
+    rows.sort((a, b) => {
+      const va = val(a, sortKey), vb = val(b, sortKey);
+      return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir || a.name.localeCompare(b.name);
+    });
+
+    const cols = [
+      ["name", "Member"], ["pGems", "Gems this period"], ["pXp", "XP this period"],
+      ["gems", "Lifetime gems donated"], ["xp", "Lifetime XP contributed"], ["lastT", "Last screenshot"],
+    ];
+    const th = cols.map(([k, label]) => `<th scope="col"><button type="button" data-sort="${k}" ${sortKey === k ? `aria-sort="${sortDir < 0 ? "descending" : "ascending"}"` : ""}>${label}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</button></th>`).join("");
+    if (!rows.length) {
+      $("#board").innerHTML = `<tbody><tr><td colspan="7"><div class="empty"><h3>No members yet</h3><p class="muted">Unlock the editor at the bottom of the page and add a clan member screenshot to start.</p></div></td></tr></tbody>`;
+      return;
+    }
+    const gainCell = (v, cls, r) => v == null
+      ? `<td class="num muted" title="First screenshot. Gains show from the next one.">new</td>`
+      : `<td class="num gain ${v === 0 ? "zero" : cls}">${v === 0 ? "0" : signed(v)}</td>`;
+    $("#board").innerHTML = `<thead><tr><th scope="col">#</th>${th}</tr></thead><tbody>` + rows.map((r, i) => `
+      <tr>
+        <td class="rankno">${i + 1}</td>
+        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip ${/leader/i.test(r.rank) ? "leader" : ""}">${esc(r.rank)}</span>` : ""} ${!r.updated ? `<span class="chip warn">no update this period</span>` : ""}</span></div></td>
+        ${gainCell(r.pGems, "gem", r)}
+        ${gainCell(r.pXp, "xp", r)}
+        <td class="num">${fmt(r.gems)}</td>
+        <td class="num">${fmt(r.xp)}</td>
+        <td class="num muted small">${dateFmt(r.lastT, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+      </tr>`).join("") + "</tbody>";
+  }
+
+  // ---------- countdown ----------
+  function tick() {
+    const now = Date.now();
+    const end = currentEnd(now);
+    let s = Math.max(0, Math.floor((end - now) / 1000));
+    const d = Math.floor(s / 86400); s -= d * 86400;
+    const h = Math.floor(s / 3600); s -= h * 3600;
+    const m = Math.floor(s / 60); s -= m * 60;
+    const p2 = (n) => String(n).padStart(2, "0");
+    $("#clock").innerHTML = `${d}<span>d</span>${p2(h)}<span>h</span>${p2(m)}<span>m</span>${p2(s)}<span>s</span>`;
+    const utc = new Date(end).toUTCString().replace(":00 GMT", " UTC");
+    $("#deadline-text").textContent = `${utc} · your time: ${dateFmt(end, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+    if (periods(now).length !== periods(now - 1000).length) render();
+  }
+
+  // ---------- editor ----------
+  function renderEditor() {
+    const root = $("#editor-root");
+    if (!unlocked) {
+      root.innerHTML = `
+        <div class="editor-gate">
+          <div style="flex:1 1 240px"><h3>Editor access</h3><p class="small muted">Clan staff can add screenshots and fix numbers here.</p></div>
+          <form id="unlock-form" autocomplete="off">
+            <input type="password" id="pw" placeholder="Password" aria-label="Editor password">
+            <button type="submit">Unlock</button>
+          </form>
+          <p class="small status err" id="pw-err" hidden>That password is wrong.</p>
+        </div>`;
+      $("#unlock-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        if ($("#pw").value.trim().toLowerCase() === "exp") { unlocked = true; ss.set("pc-unlocked", "1"); renderEditor(); }
+        else $("#pw-err").hidden = false;
+      });
+      return;
+    }
+    const saveNote = artifactApi ? "" : `<p class="small status err">Saving isn't available in this view. Open the tracker while signed in to claude.ai with edit access to save changes.</p>`;
+    const readNote = sampleApi && sampleImages ? "Claude reads the username, rank, gems and XP from each screenshot. Check the numbers before you add them."
+      : "Automatic reading isn't available in this view, so type the numbers in after adding a screenshot.";
+    root.innerHTML = `
+      <div class="editor">
+        ${dirty ? `<div class="savebar" role="status"><span>${dirty} unsaved change${dirty > 1 ? "s" : ""}. Everyone sees them once you save.</span><span class="row"><button class="ghost" id="discard-all" type="button">Discard</button><button class="primary" id="save-all" type="button" ${artifactApi ? "" : "disabled"}>Save for everyone</button></span></div>` : ""}
+        <div class="panel">
+          <div class="row" style="justify-content:space-between"><h2>Add screenshots</h2><button type="button" class="link" id="lock">Lock editor</button></div>
+          ${saveNote}
+          <label class="drop" id="drop">
+            <b>Drop, paste or choose member screenshots</b>
+            <span class="small muted">${readNote}</span>
+            <input type="file" id="file" accept="image/*" multiple>
+          </label>
+          <div class="row"><button type="button" id="manual">Add a member by hand</button></div>
+          <div class="cards" id="cards"></div>
+        </div>
+        <div class="panel">
+          <h2>Members and history</h2>
+          <p class="small muted">Every screenshot is kept as a snapshot. Remove a wrong one here or rename a member.</p>
+          <div id="members" class="cards"></div>
+        </div>
+        <div class="panel">
+          <h2>Deadline</h2>
+          <div class="row">
+            <label class="small" for="anchor">A deadline (UTC)</label>
+            <input type="datetime-local" id="anchor" value="${new Date(data.anchor).toISOString().slice(0, 16)}">
+            <label class="small" for="plen">Repeats every</label>
+            <input type="number" id="plen" min="1" max="90" value="${data.periodDays}" style="width:80px"><span class="small">days</span>
+          </div>
+        </div>
+      </div>`;
+    $("#lock").onclick = () => { unlocked = false; ss.del("pc-unlocked"); renderEditor(); };
+    $("#manual").onclick = () => { addCard(null); };
+    $("#file").onchange = (e) => { [...e.target.files].forEach(addCard); e.target.value = ""; };
+    const drop = $("#drop");
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+    drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); [...e.dataTransfer.files].filter((f) => f.type.startsWith("image/")).forEach(addCard); });
+    $("#anchor").onchange = (e) => { const v = Date.parse(e.target.value + ":00Z"); if (!isNaN(v)) { data.anchor = new Date(v).toISOString(); change(); } };
+    $("#plen").onchange = (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= 90) { data.periodDays = v; change(); } };
+    if (dirty) {
+      $("#save-all").onclick = save;
+      $("#discard-all").onclick = () => { data = structuredClone(SAVED); dirty = 0; render(); renderEditor(); };
+    }
+    renderCards();
+    renderMembers();
+  }
+
+  function change() { dirty++; render(); renderEditor(); }
+
+  // screenshot review cards
+  function addCard(file) {
+    const c = { id: ++cardSeq, file, url: file ? URL.createObjectURL(file) : null, name: "", rank: "", gems: "", xp: "", when: localInput(Date.now()), status: file ? "reading" : "manual", msg: "" };
+    cards.push(c);
+    renderCards();
+    if (file) readShot(c);
+  }
+  function localInput(ms) { const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+
+  const PROMPT = `This is a screenshot from the game Pixel Worlds showing a clan member's info popup.
+The member's username is in the blue banner at the top of the popup. Below it are rows for Rank, Age, "donated" (next to a gem/diamond icon) and "contributed" (next to an XP icon).
+Numbers use spaces as thousand separators, e.g. "1 573 330" means 1573330.
+Reply with only this JSON: {"username": string|null, "rank": string|null, "gems": integer|null, "xp": integer|null}
+gems = the donated number, xp = the contributed number. Copy the username exactly as shown. Use null for anything you cannot read clearly.`;
+
+  async function readShot(c) {
+    if (!sampleApi || !sampleImages) { c.status = "manual"; c.msg = "Automatic reading isn't available here. Type the numbers from the screenshot."; renderCards(); return; }
+    try {
+      const r = await sampleApi.json(PROMPT, { images: [c.file], cache: false });
+      const toInt = (v) => (v == null ? "" : String(v).replace(/\D/g, ""));
+      c.name = r.username ? String(r.username).trim() : "";
+      c.rank = r.rank ? String(r.rank).trim() : "";
+      c.gems = toInt(r.gems); c.xp = toInt(r.xp);
+      const existing = data.members.find((m) => key(m.name) === key(c.name));
+      if (existing) c.name = existing.name;
+      c.status = "read"; c.msg = "Read from the screenshot. Check it against the image, then add it.";
+    } catch (e) {
+      const why = {
+        not_granted: "Claude wasn't given permission to read screenshots. Type the numbers instead.",
+        rate_limited: "Too many screenshots at once. Wait a minute, or type the numbers.",
+        image_rejected: "That image couldn't be read. Try a PNG or JPG screenshot.",
+        refused: "Claude couldn't read this image. Type the numbers instead.",
+        invalid_json: "The reply couldn't be understood. Type the numbers, or remove the card and add the screenshot again.",
+      }[e && e.code] || "Reading failed. Type the numbers, or try the screenshot again later.";
+      c.status = "manual"; c.msg = why;
+    }
+    renderCards();
+  }
+
+  function cardNotes(c) {
+    const notes = [];
+    const m = data.members.find((x) => key(x.name) === key(c.name));
+    if (c.name && !m) notes.push(`<span class="chip warn">New member</span>`);
+    if (m) {
+      const last = m.entries.slice().sort((a, b) => Date.parse(a.t) - Date.parse(b.t)).pop();
+      if (last && c.gems !== "" && +c.gems < last.gems) notes.push(`<span class="chip warn">Gems lower than last time (${fmt(last.gems)})</span>`);
+      if (last && c.xp !== "" && +c.xp < last.xp) notes.push(`<span class="chip warn">XP lower than last time (${fmt(last.xp)})</span>`);
+    }
+    return notes.join("");
+  }
+
+  function renderCards() {
+    const box = $("#cards");
+    if (!box) return;
+    box.innerHTML = cards.map((c) => `
+      <div class="card" data-card="${c.id}">
+        <div class="thumb">${c.url ? `<img src="${c.url}" alt="Uploaded screenshot">` : `<p class="small muted">Manual entry</p>`}</div>
+        <div class="fields">
+          <p class="status ${c.status === "read" ? "ok" : c.status === "manual" && c.file ? "err" : ""}">${c.status === "reading" ? "Reading screenshot…" : esc(c.msg)}</p>
+          <label>Username<input type="text" id="c${c.id}-name" data-f="name" list="member-names" value="${esc(c.name)}"></label>
+          <label>Rank<input type="text" id="c${c.id}-rank" data-f="rank" value="${esc(c.rank)}" placeholder="Leader, Elder…"></label>
+          <label><span>${GEM_SVG}Gems donated (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-gems" data-f="gems" value="${esc(c.gems)}"></label>
+          <label><span>${XP_SVG}XP contributed (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-xp" data-f="xp" value="${esc(c.xp)}"></label>
+          <label>Screenshot taken<input type="datetime-local" id="c${c.id}-when" data-f="when" value="${esc(c.when)}"></label>
+          <div class="notes">${cardNotes(c)}</div>
+          <div class="actions"><button type="button" class="primary" data-act="add" ${c.status === "reading" ? "disabled" : ""}>Add to tracker</button><button type="button" data-act="drop">Remove</button></div>
+        </div>
+      </div>`).join("") + `<datalist id="member-names">${data.members.map((m) => `<option value="${esc(m.name)}">`).join("")}</datalist>`;
+    box.querySelectorAll("[data-card]").forEach((el) => {
+      const c = cards.find((x) => x.id === +el.dataset.card);
+      el.querySelectorAll("[data-f]").forEach((inp) => {
+        inp.addEventListener("input", () => {
+          let v = inp.value;
+          if (inp.dataset.f === "gems" || inp.dataset.f === "xp") v = v.replace(/\D/g, "");
+          c[inp.dataset.f] = v;
+          el.querySelector(".notes").innerHTML = cardNotes(c);
+        });
+      });
+      el.querySelector('[data-act="drop"]').onclick = () => { dropCard(c); renderCards(); };
+      el.querySelector('[data-act="add"]').onclick = () => commitCard(c, el);
+    });
+  }
+  function dropCard(c) { if (c.url) URL.revokeObjectURL(c.url); cards = cards.filter((x) => x !== c); }
+
+  function commitCard(c, el) {
+    const name = c.name.trim();
+    const t = Date.parse(c.when);
+    const status = el.querySelector(".status");
+    if (!name || c.gems === "" || c.xp === "" || isNaN(t)) { status.className = "status err"; status.textContent = "Fill in the username, gems, XP and date before adding."; return; }
+    let m = data.members.find((x) => key(x.name) === key(name));
+    if (!m) { m = { name, rank: "", entries: [] }; data.members.push(m); }
+    if (c.rank.trim()) m.rank = c.rank.trim();
+    m.entries.push({ t: new Date(t).toISOString(), gems: +c.gems, xp: +c.xp });
+    dropCard(c);
+    change();
+  }
+
+  function renderMembers() {
+    const box = $("#members");
+    if (!box) return;
+    if (!data.members.length) { box.innerHTML = `<p class="small muted">No members yet. Add a screenshot above.</p>`; return; }
+    const open = new Set(JSON.parse(ss.get("pc-open") || "[]"));
+    box.innerHTML = data.members.slice().sort((a, b) => a.name.localeCompare(b.name)).map((m) => {
+      const i = data.members.indexOf(m);
+      const es = m.entries.map((e, j) => ({ ...e, j })).sort((a, b) => Date.parse(b.t) - Date.parse(a.t));
+      return `<details class="member" data-m="${i}" ${open.has(m.name) ? "open" : ""}>
+        <summary><b>${esc(m.name)}</b>${m.rank ? `<span class="chip">${esc(m.rank)}</span>` : ""}<span class="small muted">${m.entries.length} screenshot${m.entries.length === 1 ? "" : "s"}</span></summary>
+        <div class="inner">
+          <div class="row">
+            <input type="text" id="m${i}-name" value="${esc(m.name)}" aria-label="Username">
+            <input type="text" id="m${i}-rank" value="${esc(m.rank)}" aria-label="Rank" placeholder="Rank">
+            <button type="button" data-act="rename">Update name and rank</button>
+            <button type="button" class="danger" data-act="del">Remove member</button>
+          </div>
+          <div class="scroll"><table class="entries"><thead><tr><th>Taken</th><th>Gems donated</th><th>XP contributed</th><th></th></tr></thead><tbody>
+            ${es.map((e) => `<tr><td>${dateFmt(Date.parse(e.t), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td><td class="num">${fmt(e.gems)}</td><td class="num">${fmt(e.xp)}</td><td><button type="button" class="link" data-del-entry="${e.j}">Delete</button></td></tr>`).join("")}
+          </tbody></table></div>
+        </div>
+      </details>`;
+    }).join("");
+    box.querySelectorAll("details.member").forEach((d) => {
+      const m = data.members[+d.dataset.m];
+      d.addEventListener("toggle", () => {
+        const s = new Set(JSON.parse(ss.get("pc-open") || "[]"));
+        d.open ? s.add(m.name) : s.delete(m.name);
+        ss.set("pc-open", JSON.stringify([...s]));
+      });
+      d.querySelector('[data-act="rename"]').onclick = () => {
+        const nn = d.querySelector('[id$="-name"]').value.trim();
+        if (!nn) return;
+        if (data.members.some((x) => x !== m && key(x.name) === key(nn))) { d.querySelector('[id$="-name"]').setCustomValidity("Another member already has this name"); d.querySelector('[id$="-name"]').reportValidity(); return; }
+        m.name = nn; m.rank = d.querySelector('[id$="-rank"]').value.trim(); change();
+      };
+      const delBtn = d.querySelector('[data-act="del"]');
+      delBtn.onclick = () => {
+        if (delBtn.dataset.confirm) { data.members.splice(data.members.indexOf(m), 1); change(); }
+        else { delBtn.dataset.confirm = "1"; delBtn.textContent = "Click again to remove " + m.name; }
+      };
+      d.querySelectorAll("[data-del-entry]").forEach((b) => {
+        b.onclick = () => { m.entries.splice(+b.dataset.delEntry, 1); if (!m.entries.length) data.members.splice(data.members.indexOf(m), 1); change(); };
+      });
+    });
+  }
+
+  // ---------- saving ----------
+  const HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>\n';
+  function buildHtml(state) {
+    const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Nunito:wght@500;700;800&display=swap">';
+    const css = document.getElementById("app-style").textContent;
+    const tpl = document.getElementById("shell-tpl").innerHTML;
+    const js = document.getElementById("app-script").textContent;
+    const json = JSON.stringify(state).replace(/</g, "\\u003c");
+    return HEAD + "<title>Pink Cat Clan Tracker</title>\n" + fonts + '\n<style id="app-style">' + css + '</style>\n\n<template id="shell-tpl">' + tpl + '</template>\n<div id="app"></div>\n<script type="application/json" id="state">' + json + '<\/script>\n<script id="app-script">' + js + "<\/script>\n</body></html>";
+  }
+  async function save() {
+    const btn = $("#save-all");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await artifactApi.publish(buildHtml(data));
+    } catch (e) {
+      const msg = {
+        conflict: "Someone else saved first. The page is reloading with their version; add your screenshots again.",
+        not_writer: "Your account can view this tracker but not change it. Ask the owner for edit access.",
+        not_granted: "Saving wasn't allowed. Check the artifact's permissions and try again.",
+        rate_limited: "Too many saves in a row. Wait a minute and try again.",
+      }[e && e.code] || "Saving failed. Try again in a moment.";
+      btn.disabled = false; btn.textContent = "Save for everyone";
+      btn.closest(".savebar").querySelector("span").textContent = msg;
+    }
+  }
+
+  // ---------- boot ----------
+  $("#app").replaceWith(document.getElementById("shell-tpl").content.cloneNode(true));
+  unlocked = ss.get("pc-unlocked") === "1";
+  $("#period-select").addEventListener("change", (e) => { periodIdx = +e.target.value; render(); });
+  $("#board").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sort]");
+    if (!b) return;
+    const k = b.dataset.sort;
+    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === "name" ? 1 : -1; }
+    render();
+  });
+  document.addEventListener("paste", (e) => {
+    if (!unlocked) return;
+    const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith("image/"));
+    if (files.length) { e.preventDefault(); files.forEach(addCard); }
+  });
+  render();
+  renderEditor();
+  tick();
+  setInterval(tick, 1000);
+
+  if (window.claude && window.claude.use) {
+    window.claude.use("artifact").then((a) => { artifactApi = a; if (unlocked) renderEditor(); });
+    window.claude.use("sample").then(async (s) => {
+      sampleApi = s;
+      if (s) { try { sampleImages = !!(await s.limits()).images; } catch { sampleImages = false; } }
+      if (unlocked) { renderEditor(); }
+    });
+  }
+})();
+</script>
