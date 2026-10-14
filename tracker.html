@@ -87,6 +87,28 @@ p { margin: 0; }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .top .sub { max-width: 60ch; color: var(--ink); }
 .period-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* date range slider: game progress-bar track with orange knobs */
+.range { display: grid; gap: 10px; background: var(--cyan); border-radius: 8px; padding: 10px 12px 12px; box-shadow: inset 0 -3px 0 var(--cyan-dk), inset 0 2px 0 rgba(255,255,255,.5); }
+.range-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.range-head output { font-family: var(--font-display); font-size: 18px; color: var(--ink); background: var(--white); border: 2px solid var(--navy); border-radius: 4px; padding: 0 8px; }
+.range-head .days { color: var(--navy); font-weight: 700; font-size: 13px; }
+.range-quick { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.range-quick button { font-size: 14px; padding: 2px 10px; }
+.dual { position: relative; height: 32px; }
+.dual-track { position: absolute; left: 14px; right: 14px; top: 9px; height: 14px; border-radius: 99px; background: #0f3554; border: 2px solid #0b2740; }
+.dual-track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(#8ee85a 0 40%, var(--bar) 40% 100%); }
+.dual-track b { position: absolute; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: var(--white); opacity: .85; }
+.dual input[type=range] { position: absolute; inset: 0; width: 100%; height: 32px; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.dual input[type=range]::-webkit-slider-runnable-track { height: 32px; background: none; }
+.dual input[type=range]::-moz-range-track { height: 32px; background: none; }
+.dual input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 28px; height: 28px; margin-top: 2px; border-radius: 50%; cursor: grab;
+  background: linear-gradient(#ffc04a 0 45%, var(--orange) 45% 100%); border: 3px solid #1f6f9f; box-shadow: 0 2px 0 rgba(0,0,0,.35); }
+.dual input[type=range]::-moz-range-thumb { pointer-events: auto; width: 22px; height: 22px; border-radius: 50%; cursor: grab;
+  background: linear-gradient(#ffc04a 0 45%, var(--orange) 45% 100%); border: 3px solid #1f6f9f; box-shadow: 0 2px 0 rgba(0,0,0,.35); }
+.dual input[type=range]:focus-visible { outline: none; }
+.dual input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--white), 0 0 0 6px var(--orange); }
+.dual input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--white), 0 0 0 6px var(--orange); }
+.dual-ends { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--navy); }
 .pill { display: inline-block; background: var(--navy); color: var(--white); border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: 13px; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 
 select, input, button { font: inherit; }
@@ -251,6 +273,24 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         <p class="sub">Gems donated and XP contributed by every clan member, refreshed from in-game screenshots.</p>
         <label class="period-pick"><span class="pill">Showing</span><select id="period-select"></select></label>
       </div>
+      <div class="range" id="range-box" hidden>
+        <div class="range-head">
+          <span class="pill">From</span><output id="range-from"></output>
+          <span class="pill">to</span><output id="range-to"></output>
+          <span class="days" id="range-days"></span>
+          <span class="range-quick">
+            <button type="button" data-days="7">Last 7 days</button>
+            <button type="button" data-days="30">Last 30 days</button>
+            <button type="button" data-days="all">Since tracking began</button>
+          </span>
+        </div>
+        <div class="dual">
+          <div class="dual-track" id="dual-track"><i id="dual-fill"></i></div>
+          <input type="range" id="range-a" min="0" max="1" step="1" value="0" aria-label="First day">
+          <input type="range" id="range-b" min="0" max="1" step="1" value="1" aria-label="Last day">
+        </div>
+        <div class="dual-ends"><span id="range-min"></span><span class="small">White dots are days with screenshots</span><span id="range-max"></span></div>
+      </div>
       <section class="tiles" id="tiles" aria-label="Clan totals"></section>
       <section class="board" aria-labelledby="board-title">
         <div class="board-head">
@@ -275,7 +315,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 </footer>
 </template>
 <div id="app"></div>
-<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788}]},{"name":"MadHatter","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":540605}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791}]},{"name":"Aetrish","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":720960}]},{"name":"giantmountain","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":2542397}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760}]},{"name":"Cengs","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":910083}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415}]},{"name":"Cleveland","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":27306}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617}]}],"selfName":"pdo"}</script>
+<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816},{"t":"2026-10-12T14:45:00.000Z","gems":1573330,"xp":1395842}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788},{"t":"2026-10-12T14:45:00.000Z","gems":40112,"xp":1419894}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744},{"t":"2026-10-12T14:46:00.000Z","gems":1500,"xp":166286}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666},{"t":"2026-10-12T14:45:00.000Z","gems":151500,"xp":3255646}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":1568679}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355},{"t":"2026-10-12T14:45:00.000Z","gems":300000,"xp":1302356}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791},{"t":"2026-10-12T14:46:00.000Z","gems":182167,"xp":797792}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":3851065}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":131167}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":175325}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":187421}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":217568}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":136474}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956},{"t":"2026-10-12T14:46:00.000Z","gems":2000,"xp":276905}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":167468}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":546330}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":194081}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":218633}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":27392}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985},{"t":"2026-10-12T14:46:00.000Z","gems":100,"xp":114793}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787},{"t":"2026-10-12T14:46:00.000Z","gems":3000,"xp":156278}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":40844}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686},{"t":"2026-10-12T14:47:00.000Z","gems":6,"xp":218929}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":41954}]},{"name":"Cleveland","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":27306},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":30242}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617},{"t":"2026-10-12T15:13:00.000Z","gems":2000000,"xp":1179171}]},{"name":"Perk","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":19263}]},{"name":"_RASER_","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":3375}]},{"name":"ALF","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":3678,"xp":23366}]},{"name":"Obys","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":12562}]}],"selfName":"pdo"}</script>
 <script id="app-script">
 (function () {
   const DAY = 864e5;
@@ -285,6 +325,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   let dirty = 0;
   let sortKey = "pGems", sortDir = -1;
   let periodIdx = 0;
+  let custom = null; // {a, b}: day offsets from rangeBounds().first when filtering by dates
   let unlocked = false;
   let artifactApi = null, sampleApi = null, sampleImages = false, sampleReady = false, sampleLimits = null;
   let cards = [];
@@ -318,6 +359,56 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   const dateFmt = (ms, opts) => new Date(ms).toLocaleString(undefined, opts);
   const shortDate = (ms) => dateFmt(ms, { day: "numeric", month: "short" });
 
+  // ---------- custom date range ----------
+  const startOfDay = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const addDays = (ms, n) => { const d = new Date(ms); d.setDate(d.getDate() + n); return d.getTime(); };
+  const dayDiff = (a, b) => Math.round((b - a) / DAY);
+  function rangeBounds() {
+    // The slider starts at the first screenshot, or a week back when tracking is newer than that.
+    const today = startOfDay(Date.now());
+    let firstShot = today;
+    data.members.forEach((m) => m.entries.forEach((e) => { firstShot = Math.min(firstShot, startOfDay(Date.parse(e.t))); }));
+    const first = Math.min(firstShot, addDays(today, -6));
+    return { first, days: dayDiff(first, today), firstShot: dayDiff(first, firstShot) };
+  }
+  function customPeriod() {
+    const { first } = rangeBounds();
+    return { start: addDays(first, custom.a), end: addDays(first, custom.b + 1), custom: true };
+  }
+  function setCustom(a, b) {
+    const { days } = rangeBounds();
+    custom = { a: Math.max(0, Math.min(a, days)), b: Math.max(0, Math.min(b, days)) };
+    if (custom.a > custom.b) custom.a = custom.b;
+  }
+  function drawRange() {
+    const box = $("#range-box");
+    box.hidden = !custom;
+    if (!custom) return;
+    const { first, days } = rangeBounds();
+    const A = $("#range-a"), B = $("#range-b");
+    [A, B].forEach((el) => { el.max = String(days); });
+    // The knobs may cross while dragging; only re-seat them when neither is being moved.
+    if (document.activeElement !== A && document.activeElement !== B) { A.value = String(custom.a); B.value = String(custom.b); }
+    // with both knobs at the right end, keep the start knob on top so it can be dragged back
+    A.style.zIndex = +A.value >= days ? "3" : "1";
+    const pct = (i) => (days ? (i / days) * 100 : 0);
+    const fill = $("#dual-fill");
+    fill.style.left = pct(custom.a) + "%"; fill.style.right = (100 - pct(custom.b)) + "%";
+    const shotDays = new Set();
+    data.members.forEach((m) => m.entries.forEach((e) => shotDays.add(dayDiff(first, startOfDay(Date.parse(e.t))))));
+    $("#dual-track").querySelectorAll("b").forEach((d) => d.remove());
+    shotDays.forEach((i) => { const d = document.createElement("b"); d.style.left = pct(i) + "%"; $("#dual-track").append(d); });
+    const long = { weekday: "short", day: "numeric", month: "short" };
+    $("#range-from").textContent = dateFmt(addDays(first, custom.a), long);
+    $("#range-to").textContent = dateFmt(addDays(first, custom.b), long);
+    const n = custom.b - custom.a + 1;
+    $("#range-days").textContent = n + (n === 1 ? " day" : " days");
+    $("#range-min").textContent = shortDate(first);
+    $("#range-max").textContent = "Today";
+    A.setAttribute("aria-valuetext", $("#range-from").textContent);
+    B.setAttribute("aria-valuetext", $("#range-to").textContent);
+  }
+
   function stats(m, p) {
     const es = m.entries.slice().sort((x, y) => Date.parse(x.t) - Date.parse(y.t));
     const upTo = es.filter((e) => Date.parse(e.t) < p.end);
@@ -339,22 +430,28 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   function render() {
     const ps = periods(Date.now());
     if (periodIdx >= ps.length) periodIdx = 0;
-    const p = ps[periodIdx];
+    if (custom) setCustom(custom.a, custom.b); // keep the range inside today's bounds
+    const p = custom ? customPeriod() : ps[periodIdx];
     const sel = $("#period-select");
-    sel.innerHTML = ps.map((q, i) => `<option value="${i}">${q.current ? "Current period" : "Past period"}: ${shortDate(q.start)} to ${shortDate(q.end)}</option>`).join("");
-    sel.value = String(periodIdx);
+    sel.innerHTML = ps.map((q, i) => `<option value="${i}">${q.current ? "Current period" : "Past period"}: ${shortDate(q.start)} to ${shortDate(q.end)}</option>`).join("")
+      + `<option value="custom">Custom dates (slider)</option>`;
+    sel.value = custom ? "custom" : String(periodIdx);
+    drawRange();
+    const scope = custom ? "in range" : "this period";
 
     const rows = data.members.map((m) => stats(m, p)).filter(Boolean);
     const sumG = rows.reduce((s, r) => s + (r.pGems || 0), 0);
     const sumX = rows.reduce((s, r) => s + (r.pXp || 0), 0);
     const upd = rows.filter((r) => r.updated).length;
     $("#tiles").innerHTML = `
-      <div class="tile"><span class="eyebrow">${GEM_SVG}Gems donated this period</span><span class="big num gem">${fmt(sumG)}</span></div>
-      <div class="tile"><span class="eyebrow">${XP_SVG}XP earned this period</span><span class="big num xp">${fmt(sumX)}</span></div>
-      <div class="tile"><span class="eyebrow">Members updated this period</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
+      <div class="tile"><span class="eyebrow">${GEM_SVG}Gems donated ${scope}</span><span class="big num gem">${fmt(sumG)}</span></div>
+      <div class="tile"><span class="eyebrow">${XP_SVG}XP earned ${scope}</span><span class="big num xp">${fmt(sumX)}</span></div>
+      <div class="tile"><span class="eyebrow">Members updated ${scope}</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
 
-    const pre = Date.now() < p.start; // before the very first period has begun
-    $("#board-note").textContent = (pre
+    const pre = !custom && Date.now() < p.start; // before the very first period has begun
+    $("#board-note").textContent = (custom
+      ? `Gains from each member's last screenshot before ${shortDate(p.start)} to their last one by the end of ${shortDate(p.end - 1)}.`
+      : pre
       ? `The first period starts ${dateFmt(p.start, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. Screenshots added before then are each member's starting point.`
       : `Period gains count from each member's last screenshot before ${shortDate(p.start)}.`) + (dirty ? " Showing unsaved changes." : "");
 
@@ -365,7 +462,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     });
 
     const cols = [
-      ["name", "Member"], ["pGems", "Gems this period"], ["pXp", "XP this period"],
+      ["name", "Member"], ["pGems", "Gems " + scope], ["pXp", "XP " + scope],
       ["gems", "Lifetime gems donated"], ["xp", "Lifetime XP contributed"], ["lastT", "Last screenshot"],
     ];
     const th = cols.map(([k, label]) => `<th scope="col"><button type="button" data-sort="${k}" ${sortKey === k ? `aria-sort="${sortDir < 0 ? "descending" : "ascending"}"` : ""}>${label}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</button></th>`).join("");
@@ -381,7 +478,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     $("#board").innerHTML = `<thead><tr><th scope="col">#</th>${th}</tr></thead><tbody>` + rows.map((r, i) => `
       <tr>
         <td class="rankno">${i + 1}</td>
-        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip r-${r.rank.toLowerCase().replace(/[^a-z]/g, "")}">${esc(r.rank)}</span>` : ""} ${!r.updated && !pre ? `<span class="chip warn">no update this period</span>` : ""}</span></div></td>
+        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip r-${r.rank.toLowerCase().replace(/[^a-z]/g, "")}">${esc(r.rank)}</span>` : ""} ${!r.updated && !pre ? `<span class="chip warn">no update ${scope}</span>` : ""}</span></div></td>
         ${gainCell(r.pGems, "gem", r)}
         ${gainCell(r.pXp, "xp", r)}
         <td class="num">${fmt(r.gems)}</td>
@@ -1271,7 +1368,21 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   // ---------- boot ----------
   $("#app").replaceWith(document.getElementById("shell-tpl").content.cloneNode(true));
   unlocked = ss.get("pc-unlocked") === "1";
-  $("#period-select").addEventListener("change", (e) => { periodIdx = +e.target.value; render(); });
+  $("#period-select").addEventListener("change", (e) => {
+    if (e.target.value === "custom") { const { days } = rangeBounds(); if (!custom) setCustom(days - 6, days); }
+    else { custom = null; periodIdx = +e.target.value; }
+    render();
+  });
+  const onKnob = () => { const a = +$("#range-a").value, b = +$("#range-b").value; setCustom(Math.min(a, b), Math.max(a, b)); render(); };
+  $("#range-a").addEventListener("input", onKnob);
+  $("#range-b").addEventListener("input", onKnob);
+  $("#range-box").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-days]");
+    if (!b) return;
+    const { days, firstShot } = rangeBounds();
+    setCustom(b.dataset.days === "all" ? firstShot : days - (+b.dataset.days - 1), days);
+    render();
+  });
   $("#board").addEventListener("click", (e) => {
     const b = e.target.closest("[data-sort]");
     if (!b) return;
