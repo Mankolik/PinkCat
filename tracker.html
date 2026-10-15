@@ -88,13 +88,7 @@ p { margin: 0; }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .top .sub { max-width: 60ch; color: var(--ink); }
 .period-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* Clan Showdown header: orange "Close"-button plate with an outlined title */
-.comp-head { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 14px 14px 12px; border-radius: 12px;
-  background: linear-gradient(#ffd25a 0 45%, var(--orange) 45% 100%); border: 3px solid #4aa8dc; box-shadow: inset 0 -4px 0 var(--orange-dk), 0 0 0 2px #1f6f9f, 0 5px 0 rgba(0,0,0,.3); }
-.comp-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.comp-head h2 { font-size: clamp(24px, 5vw, 34px); color: var(--white); text-shadow: var(--outline); }
-.comp-when { font-family: var(--font-display); font-size: clamp(18px, 4vw, 22px); color: var(--ink); font-variant-numeric: tabular-nums; }
-.comp-head .small { color: #5a2a00; font-weight: 600; }
+/* LIVE / FINAL badge in the staff showdown panel */
 .comp-badge { display: inline-block; border-radius: 999px; padding: 1px 10px 2px; font-family: var(--font-display); font-size: 14px; letter-spacing: .08em; color: var(--white); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 .comp-badge.live { background: #2f9e1e; }
 .comp-badge.final { background: var(--navy); }
@@ -301,11 +295,6 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         <p class="sub">Gems donated and XP contributed by every clan member, refreshed from in-game screenshots.</p>
         <label class="period-pick"><span class="pill">Showing</span><select id="period-select"></select></label>
       </div>
-      <div class="comp-head" id="comp-head" hidden>
-        <div class="comp-title"><span class="comp-badge live" id="comp-badge">LIVE</span><h2 id="comp-name">Clan Showdown</h2></div>
-        <p class="comp-when" id="comp-when"></p>
-        <p class="small" id="comp-sub"></p>
-      </div>
       <div class="range" id="range-box" hidden>
         <div class="range-head">
           <span class="pill">From</span><output id="range-from"></output>
@@ -503,17 +492,13 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const mi = Math.floor(s / 60); s -= mi * 60;
     return { live: true, text: `Ends in ${d ? d + "d " : ""}${String(h).padStart(2, "0")}h ${String(mi).padStart(2, "0")}m ${String(s).padStart(2, "0")}s` };
   }
+  // Time left or "finished", and nothing at all for an open-ended showdown.
+  const compTiming = () => (data.comp && (data.comp.end || !compLive()) ? compStatus().text : "");
   function drawCompHead() {
-    const box = $("#comp-head");
-    box.hidden = view !== "comp" || !data.comp;
-    if (box.hidden) return;
-    const st = compStatus();
-    $("#comp-name").textContent = data.comp.name || "Clan Showdown";
-    $("#comp-badge").textContent = st.live ? "LIVE" : "FINAL";
-    $("#comp-badge").className = "comp-badge " + (st.live ? "live" : "final");
-    $("#comp-when").textContent = st.text;
-    $("#comp-sub").textContent = `Ranked by ${METRICS[data.comp.metric].replace(/^\w/, (ch) => ch.toLowerCase()).replace(/^xP/, "XP")} · started ${dateFmt(Date.parse(data.comp.start), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+    const left = $("#comp-left");
+    if (left && data.comp) left.textContent = compTiming();
   }
+
 
   // ---------- leaderboard ----------
   function render() {
@@ -544,7 +529,8 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       $("#tiles").innerHTML = `
         <div class="tile"><span class="eyebrow">${icon}${METRICS[mk]}, whole clan</span><span class="big num ${cls}">${fmt(total(mk))}</span></div>
         <div class="tile"><span class="eyebrow">Members with a new screenshot</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
-      $("#board-note").textContent = `Scores count screenshots added since the showdown started, against each member's starting value.` + (dirty ? " Showing unsaved changes." : "");
+      const timing = compTiming();
+      $("#board-note").innerHTML = (timing ? `<b id="comp-left">${esc(timing)}</b> · ` : "") + esc(`Ranked by ${METRICS[data.comp.metric].replace(/^\w/, (ch) => ch.toLowerCase()).replace(/^xP/, "XP")}.`) + (dirty ? " Showing unsaved changes." : "");
     } else {
       $("#tiles").innerHTML = `
         <div class="tile"><span class="eyebrow">${GEM_SVG}Gems donated ${scope}</span><span class="big num gem">${fmt(total("pGems"))}</span></div>
@@ -556,7 +542,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         ? `The first period starts ${dateFmt(p.start, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. Screenshots added before then are each member's starting point.`
         : `Period gains count from each member's last screenshot before ${shortDate(p.start)}.`) + (dirty ? " Showing unsaved changes." : "");
     }
-    $("#board-title").textContent = isComp ? "Showdown Leaderboard" : "Clan Members";
+    $("#board-title").textContent = isComp ? data.comp.name || "Clan Showdown" : "Clan Members";
 
     let cols = [
       ["name", "Member"], ["pGems", "Gems " + scope], ["pXp", "XP " + scope],
@@ -576,7 +562,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     lastBoard = {
       isComp, rows: rows.slice(), cols: imgCols,
       heading: isComp ? data.comp.name || "Clan Showdown" : view === "custom" ? `${shortDate(p.start)} to ${shortDate(p.end - 1)}` : `Clan Standings: ${shortDate(p.start)} to ${shortDate(p.end)}`,
-      sub: isComp ? $("#comp-sub").textContent : view === "custom" ? "Gains from each member's last screenshot before the first day" : pre ? "Starting points for the first period" : "Gains since the period started",
+      sub: isComp ? [compTiming(), `Ranked by ${METRICS[data.comp.metric].replace(/^\w/, (ch) => ch.toLowerCase()).replace(/^xP/, "XP")}`].filter(Boolean).join(" · ") : view === "custom" ? "Gains from each member's last screenshot before the first day" : pre ? "Starting points for the first period" : "Gains since the period started",
       status: isComp ? compStatus().text : "", badge: isComp ? (compLive() ? "LIVE" : "FINAL") : "",
       metricLabel: isComp ? METRIC_SHORT[data.comp.metric] : "", scopeShort: view === "custom" ? "in range" : "this period",
     };
@@ -633,7 +619,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     try { await Promise.all([document.fonts.load(`40px ${D}`), document.fonts.load(`700 22px ${B}`), document.fonts.load(`600 16px ${B}`)]); } catch {}
     const valCols = b.cols.filter(([k]) => k !== "name");
     const W = Math.max(900, 560 + 175 * valCols.length);
-    const rowH = 56, headH = b.isComp ? 150 : 104, top = 70;
+    const rowH = 56, headH = 104, top = 70;
     const listTop = top + 52 + headH + 24 + 34; // window top + banner room + heading + gap + column labels
     const H = listTop + b.rows.length * (rowH + 6) + 92;
     const S = 2, cv = document.createElement("canvas");
@@ -674,28 +660,9 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     // heading plate
     const hx = bx + 16, hw = bw - 32, hy = top + 52;
     g.textAlign = "center";
-    if (b.isComp) {
-      rr(g, hx, hy, hw, headH, 14);
-      const og2 = g.createLinearGradient(0, hy, 0, hy + headH); og2.addColorStop(0, "#ffd25a"); og2.addColorStop(0.45, "#ffd25a"); og2.addColorStop(0.45, "#ffa21f"); og2.addColorStop(1, "#ffa21f");
-      g.fillStyle = og2; g.fill(); g.lineWidth = 4; g.strokeStyle = "#4aa8dc"; g.stroke();
-      g.font = `38px ${D}`;
-      const name = fitText(g, b.heading, hw - 180);
-      const nw = g.measureText(name).width;
-      g.font = `16px ${D}`;
-      const badgeW = g.measureText(b.badge).width + 26;
-      const startX = W / 2 - (nw + badgeW + 14) / 2;
-      rr(g, startX, hy + 30, badgeW, 28, 14); g.fillStyle = b.badge === "LIVE" ? "#2f9e1e" : "#1d5b86"; g.fill();
-      g.fillStyle = "#fff"; g.fillText(b.badge, startX + badgeW / 2, hy + 45);
-      g.font = `38px ${D}`; g.textAlign = "left";
-      outlined(g, name, startX + badgeW + 14, hy + 46, "#ffffff", "#163a57", 8);
-      g.textAlign = "center";
-      g.font = `24px ${D}`; g.fillStyle = "#163a57"; g.fillText(b.status, W / 2, hy + 92);
-      g.font = `600 16px ${B}`; g.fillStyle = "#5a2a00"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 124);
-    } else {
-      rr(g, hx, hy, hw, headH, 14); g.fillStyle = "#1d5b86"; g.fill();
-      g.font = `34px ${D}`; g.fillStyle = "#fff"; g.fillText(fitText(g, b.heading, hw - 40), W / 2, hy + 40);
-      g.font = `600 17px ${B}`; g.fillStyle = "#d6effa"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 76);
-    }
+    rr(g, hx, hy, hw, headH, 14); g.fillStyle = "#1d5b86"; g.fill();
+    g.font = `34px ${D}`; g.fillStyle = "#fff"; g.fillText(fitText(g, b.heading, hw - 40), W / 2, hy + 40);
+    g.font = `600 17px ${B}`; g.fillStyle = "#d6effa"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 76);
 
     // list panel + column labels
     const ly = hy + headH + 24;
