@@ -1,5 +1,7 @@
 # Pink Cat [PINK] clan tracker
 
+**Open the tracker: [mankolik.github.io/PinkCat](https://mankolik.github.io/PinkCat/)**
+
 Gems donated and XP contributed by Pink Cat clan members in Pixel Worlds: two-week periods, a custom date
 slider, Clan Showdown competitions, and shareable standings images.
 
