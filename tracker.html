@@ -131,6 +131,12 @@ code { background: var(--white); border: 1px solid var(--cyan-dk); border-radius
 .dual input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--white), 0 0 0 6px var(--orange); }
 .dual input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--white), 0 0 0 6px var(--orange); }
 .dual-ends { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--navy); }
+.img-dialog { position: fixed; inset: 0; z-index: 20; background: rgba(5, 12, 24, .78); display: grid; place-items: center; padding: 16px; }
+.img-box { background: var(--cream); border: 5px solid var(--gold); border-radius: 14px; box-shadow: 0 0 0 2px var(--gold-dk), 0 20px 50px rgba(0,0,0,.6); padding: 14px; display: grid; gap: 10px; max-width: min(760px, 100%); max-height: calc(100% - 24px); min-width: 0; }
+.img-scroll { overflow: auto; max-height: 70vh; border-radius: 8px; border: 2px solid var(--navy); background: var(--world); }
+.img-scroll img { display: block; width: 100%; height: auto; }
+.img-status { color: var(--ink); font-weight: 600; }
+#img-open { font-size: 15px; padding: 4px 14px; }
 .pill { display: inline-block; background: var(--navy); color: var(--white); border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: 13px; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 
 select, input, button { font: inherit; }
@@ -323,6 +329,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         <div class="board-head">
           <h2 id="board-title">Clan Members</h2>
           <p class="small" id="board-note"></p>
+          <button type="button" id="img-open">Save standings as image</button>
         </div>
         <div class="scroll"><table id="board"></table></div>
       </section>
@@ -342,7 +349,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 </footer>
 </template>
 <div id="app"></div>
-<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816},{"t":"2026-10-12T14:45:00.000Z","gems":1573330,"xp":1395842}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788},{"t":"2026-10-12T14:45:00.000Z","gems":40112,"xp":1419894}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744},{"t":"2026-10-12T14:46:00.000Z","gems":1500,"xp":166286}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666},{"t":"2026-10-12T14:45:00.000Z","gems":151500,"xp":3255646}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":1568679}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355},{"t":"2026-10-12T14:45:00.000Z","gems":300000,"xp":1302356}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791},{"t":"2026-10-12T14:46:00.000Z","gems":182167,"xp":797792}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":3851065}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":131167}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":175325}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":187421}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":217568}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":136474}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956},{"t":"2026-10-12T14:46:00.000Z","gems":2000,"xp":276905}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":167468}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":546330}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":194081}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":218633}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":27392}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985},{"t":"2026-10-12T14:46:00.000Z","gems":100,"xp":114793}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787},{"t":"2026-10-12T14:46:00.000Z","gems":3000,"xp":156278}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":40844}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686},{"t":"2026-10-12T14:47:00.000Z","gems":6,"xp":218929}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":41954}]},{"name":"Cleveland","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":27306},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":30242}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617},{"t":"2026-10-12T15:13:00.000Z","gems":2000000,"xp":1179171}]},{"name":"Perk","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":19263}]},{"name":"_RASER_","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":3375}]},{"name":"ALF","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":3678,"xp":23366}]},{"name":"Obys","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":12562}]},{"name":"Leaf_","rank":"","entries":[{"t":"2026-10-15T20:20:00.000Z","gems":null,"xp":2280}]}],"selfName":"pdo","comp":{"name":"Clan Showdown","start":"2026-10-15T20:21:00.000Z","end":null,"metric":"pXp","base":{"sylvia":{"xp":1395842,"gems":1573330},"yeebuz":{"xp":1439127,"gems":40112},"bubonicplague":{"xp":195555,"gems":1500},"apples":{"xp":3272000,"gems":151500},"kekkekek":{"xp":1592342,"gems":0},"kaiji":{"xp":1322324,"gems":300000},"hrlege":{"xp":829073,"gems":182167},"minamazzini":{"xp":3870002,"gems":0},"nedski":{"xp":135275,"gems":0},"lin":{"xp":204615,"gems":0},"antsa":{"xp":196446,"gems":0},"tower":{"xp":217568,"gems":0},"endlesly":{"xp":144750,"gems":0},"arshia1111":{"xp":300410,"gems":2000},"larpson":{"xp":342286,"gems":0},"frog77":{"xp":611019,"gems":0},"mauz":{"xp":219725,"gems":0},"shadowpw":{"xp":280357,"gems":0},"_mew_":{"xp":33601,"gems":0},"herraharmaa":{"xp":115844,"gems":100},"luse":{"xp":157542,"gems":3000},"nyiram":{"xp":119943,"gems":0},"apple_":{"xp":366404,"gems":6},"cyboorg1312":{"xp":50111,"gems":0},"cleveland":{"xp":30242,"gems":0},"pdo":{"xp":1210638,"gems":2000000},"perk":{"xp":19263,"gems":0},"_raser_":{"xp":26534,"gems":0},"alf":{"xp":78006,"gems":3678},"obys":{"xp":86350,"gems":0},"leaf_":{"xp":2280,"gems":null}},"hidden":false}}</script>
+<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816},{"t":"2026-10-12T14:45:00.000Z","gems":1573330,"xp":1395842},{"t":"2026-10-15T20:30:00.000Z","gems":1573330,"xp":1514668}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788},{"t":"2026-10-12T14:45:00.000Z","gems":40112,"xp":1419894},{"t":"2026-10-15T20:30:00.000Z","gems":40112,"xp":1453279}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744},{"t":"2026-10-12T14:46:00.000Z","gems":1500,"xp":166286},{"t":"2026-10-15T20:31:00.000Z","gems":1500,"xp":233454}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666},{"t":"2026-10-12T14:45:00.000Z","gems":151500,"xp":3255646},{"t":"2026-10-15T20:30:00.000Z","gems":151500,"xp":3325744}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":1568679},{"t":"2026-10-15T20:31:00.000Z","gems":1,"xp":1596442}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355},{"t":"2026-10-12T14:45:00.000Z","gems":300000,"xp":1302356},{"t":"2026-10-15T20:30:00.000Z","gems":300000,"xp":1324827}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791},{"t":"2026-10-12T14:46:00.000Z","gems":182167,"xp":797792},{"t":"2026-10-15T20:31:00.000Z","gems":194249,"xp":841845}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":3851065},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":3900923}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":131167},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":139336}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":175325},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":217749}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":187421},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":199135}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":217568},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":221181}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":136474},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":148250}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956},{"t":"2026-10-12T14:46:00.000Z","gems":2000,"xp":276905},{"t":"2026-10-15T20:31:00.000Z","gems":2000,"xp":312879}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":167468},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":405979}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":546330},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":630973}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":194081},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":219725}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":218633},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":318834}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":27392},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":37032}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985},{"t":"2026-10-12T14:46:00.000Z","gems":100,"xp":114793},{"t":"2026-10-15T20:32:00.000Z","gems":167,"xp":115844}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787},{"t":"2026-10-12T14:46:00.000Z","gems":3000,"xp":156278},{"t":"2026-10-15T20:31:00.000Z","gems":3000,"xp":157542}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":40844},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":137714}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686},{"t":"2026-10-12T14:47:00.000Z","gems":6,"xp":218929},{"t":"2026-10-15T20:32:00.000Z","gems":1977,"xp":375989}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":41954},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":50111}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617},{"t":"2026-10-12T15:13:00.000Z","gems":2000000,"xp":1179171},{"t":"2026-10-15T20:37:00.000Z","gems":2010000,"xp":1240370}]},{"name":"_RASER_","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":3375},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":40574}]},{"name":"ALF","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":3678,"xp":23366},{"t":"2026-10-15T20:31:00.000Z","gems":3678,"xp":126431}]},{"name":"Obys","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":12562},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":126799}]},{"name":"Leaf_","rank":"Member","entries":[{"t":"2026-10-15T20:20:00.000Z","gems":null,"xp":2280},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":40563}]},{"name":"Kisuke44","rank":"Member","entries":[{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":33}]}],"selfName":"pdo","comp":{"name":"Clan Showdown","start":"2026-10-15T20:21:00.000Z","end":null,"metric":"pXp","base":{"sylvia":{"xp":1472103,"gems":1573330},"yeebuz":{"xp":1439127,"gems":40112},"bubonicplague":{"xp":195555,"gems":1500},"apples":{"xp":3272000,"gems":151500},"kekkekek":{"xp":1592342,"gems":0},"kaiji":{"xp":1322324,"gems":300000},"hrlege":{"xp":829073,"gems":182167},"minamazzini":{"xp":3870002,"gems":0},"nedski":{"xp":135275,"gems":0},"lin":{"xp":204615,"gems":0},"antsa":{"xp":196446,"gems":0},"tower":{"xp":217568,"gems":0},"endlesly":{"xp":144750,"gems":0},"arshia1111":{"xp":300410,"gems":2000},"larpson":{"xp":342286,"gems":0},"frog77":{"xp":611019,"gems":0},"mauz":{"xp":219725,"gems":0},"shadowpw":{"xp":280357,"gems":0},"_mew_":{"xp":33601,"gems":0},"herraharmaa":{"xp":115844,"gems":100},"luse":{"xp":157542,"gems":3000},"nyiram":{"xp":119943,"gems":0},"apple_":{"xp":366404,"gems":6},"cyboorg1312":{"xp":50111,"gems":0},"cleveland":{"xp":30242,"gems":0},"pdo":{"xp":1210638,"gems":2000000},"perk":{"xp":19263,"gems":0},"_raser_":{"xp":26534,"gems":0},"alf":{"xp":78006,"gems":3678},"obys":{"xp":86350,"gems":0},"leaf_":{"xp":2280,"gems":0},"kisuke44":{"xp":0,"gems":0}},"hidden":false}}</script>
 <script id="app-script">
 (function () {
   const DAY = 864e5;
@@ -565,6 +572,14 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir || (isComp && !unlocked ? 0 : b.xp - a.xp) || a.name.localeCompare(b.name);
     });
 
+    const imgCols = isComp ? [["name", "Member"], [data.comp.metric, ""]] : cols.filter(([k]) => k !== "lastT");
+    lastBoard = {
+      isComp, rows: rows.slice(), cols: imgCols,
+      heading: isComp ? data.comp.name || "Clan Showdown" : view === "custom" ? `${shortDate(p.start)} to ${shortDate(p.end - 1)}` : `Clan Standings: ${shortDate(p.start)} to ${shortDate(p.end)}`,
+      sub: isComp ? $("#comp-sub").textContent : view === "custom" ? "Gains from each member's last screenshot before the first day" : pre ? "Starting points for the first period" : "Gains since the period started",
+      status: isComp ? compStatus().text : "", badge: isComp ? (compLive() ? "LIVE" : "FINAL") : "",
+      metricLabel: isComp ? METRIC_SHORT[data.comp.metric] : "", scopeShort: view === "custom" ? "in range" : "this period",
+    };
     const th = cols.map(([k, label]) => `<th scope="col" class="${isComp && k === data.comp.metric ? "picked" : ""}"><button type="button" data-sort="${k}" ${sortKey === k ? `aria-sort="${sortDir < 0 ? "descending" : "ascending"}"` : ""}>${label}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</button></th>`).join("");
     if (!rows.length) {
       $("#board").innerHTML = `<tbody><tr><td colspan="7"><div class="empty"><h3>No members yet</h3><p class="muted">Unlock the editor at the bottom of the page and add a clan member screenshot to start.</p></div></td></tr></tbody>`;
@@ -589,6 +604,196 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       </tr>`).join("") + "</tbody>";
     $("#board").classList.toggle("comp-board", isComp && !unlocked);
   }
+
+  // ---------- standings image (PNG / JPG) ----------
+  // Drawn on a canvas in the game's window style from the board that's on screen right now.
+  // Showdown images always show only the ranking measure, like the visitor board.
+  let lastBoard = null;
+  let downloadsApi = null;
+  const IMG_LABELS = { pGems: "Gems", pXp: "XP", gems: "Lifetime gems", xp: "Lifetime XP" };
+
+  function rr(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function outlined(g, text, x, y, fill, stroke, width) {
+    g.lineJoin = "round"; g.lineWidth = width; g.strokeStyle = stroke; g.strokeText(text, x, y);
+    g.fillStyle = fill; g.fillText(text, x, y);
+  }
+  function fitText(g, text, max) {
+    if (g.measureText(text).width <= max) return text;
+    while (text.length > 1 && g.measureText(text + "…").width > max) text = text.slice(0, -1);
+    return text + "…";
+  }
+  const RANK_COLORS = { leader: "#8e3fe0", coleader: "#b04fc9", elder: "#2f9e1e", veteran: "#1f74c8" };
+
+  async function drawStandings() {
+    const b = lastBoard;
+    const D = "'Lilita One', 'Arial Rounded MT Bold', sans-serif", B = "'Fira Sans', 'Segoe UI', sans-serif";
+    try { await Promise.all([document.fonts.load(`40px ${D}`), document.fonts.load(`700 22px ${B}`), document.fonts.load(`600 16px ${B}`)]); } catch {}
+    const valCols = b.cols.filter(([k]) => k !== "name");
+    const W = Math.max(900, 560 + 175 * valCols.length);
+    const rowH = 56, headH = b.isComp ? 150 : 104, top = 70;
+    const listTop = top + 52 + headH + 24 + 34; // window top + banner room + heading + gap + column labels
+    const H = listTop + b.rows.length * (rowH + 6) + 92;
+    const S = 2, cv = document.createElement("canvas");
+    cv.width = W * S; cv.height = H * S;
+    const g = cv.getContext("2d");
+    g.scale(S, S);
+
+    // world: stone blocks
+    g.fillStyle = "#0a1424"; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 64) for (let x = 0; x < W; x += 64) {
+      g.fillStyle = "#1b2738"; g.fillRect(x + 2, y + 2, 61, 61);
+      g.fillStyle = "#223146"; g.beginPath(); g.moveTo(x + 2, y + 2); g.lineTo(x + 40, y + 2); g.lineTo(x + 2, y + 40); g.fill();
+    }
+    g.fillStyle = "rgba(10,20,36,.55)"; g.fillRect(0, 0, W, H);
+
+    // window frame
+    const wx = 30, ww = W - 60, wh = H - top - 50;
+    rr(g, wx - 2, top - 2, ww + 4, wh + 4, 24); g.fillStyle = "#9a7a00"; g.fill();
+    rr(g, wx, top, ww, wh, 22); g.fillStyle = "#f6c700"; g.fill();
+    const og = g.createLinearGradient(0, top, 0, top + wh); og.addColorStop(0, "#a7bb1d"); og.addColorStop(1, "#74870d");
+    rr(g, wx + 7, top + 7, ww - 14, wh - 14, 16); g.fillStyle = og; g.fill();
+    const bx = wx + 19, bw = ww - 38;
+    rr(g, bx, top + 19, bw, wh - 38, 12); g.fillStyle = "#f6efd3"; g.fill();
+
+    // title banner
+    g.textBaseline = "middle"; g.textAlign = "center";
+    g.font = `44px ${D}`;
+    const t1 = "Pink Cat ", t2 = "[PINK]";
+    const tw = g.measureText(t1 + t2).width, pw = tw + 90, ph = 68, px = W / 2 - pw / 2, py = top - 40;
+    rr(g, px, py, pw, ph, ph / 2);
+    const bg = g.createLinearGradient(0, py, 0, py + ph); bg.addColorStop(0, "#b6e9fb"); bg.addColorStop(0.42, "#b6e9fb"); bg.addColorStop(0.42, "#7dd0f0"); bg.addColorStop(1, "#7dd0f0");
+    g.fillStyle = bg; g.fill(); g.lineWidth = 4; g.strokeStyle = "#2f8ec4"; g.stroke();
+    g.textAlign = "left";
+    const tx = W / 2 - tw / 2, ty = py + ph / 2 + 2;
+    outlined(g, t1, tx, ty, "#ffffff", "#163a57", 8);
+    outlined(g, t2, tx + g.measureText(t1).width, ty, "#ffc6ea", "#163a57", 8);
+
+    // heading plate
+    const hx = bx + 16, hw = bw - 32, hy = top + 52;
+    g.textAlign = "center";
+    if (b.isComp) {
+      rr(g, hx, hy, hw, headH, 14);
+      const og2 = g.createLinearGradient(0, hy, 0, hy + headH); og2.addColorStop(0, "#ffd25a"); og2.addColorStop(0.45, "#ffd25a"); og2.addColorStop(0.45, "#ffa21f"); og2.addColorStop(1, "#ffa21f");
+      g.fillStyle = og2; g.fill(); g.lineWidth = 4; g.strokeStyle = "#4aa8dc"; g.stroke();
+      g.font = `38px ${D}`;
+      const name = fitText(g, b.heading, hw - 180);
+      const nw = g.measureText(name).width;
+      g.font = `16px ${D}`;
+      const badgeW = g.measureText(b.badge).width + 26;
+      const startX = W / 2 - (nw + badgeW + 14) / 2;
+      rr(g, startX, hy + 30, badgeW, 28, 14); g.fillStyle = b.badge === "LIVE" ? "#2f9e1e" : "#1d5b86"; g.fill();
+      g.fillStyle = "#fff"; g.fillText(b.badge, startX + badgeW / 2, hy + 45);
+      g.font = `38px ${D}`; g.textAlign = "left";
+      outlined(g, name, startX + badgeW + 14, hy + 46, "#ffffff", "#163a57", 8);
+      g.textAlign = "center";
+      g.font = `24px ${D}`; g.fillStyle = "#163a57"; g.fillText(b.status, W / 2, hy + 92);
+      g.font = `600 16px ${B}`; g.fillStyle = "#5a2a00"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 124);
+    } else {
+      rr(g, hx, hy, hw, headH, 14); g.fillStyle = "#1d5b86"; g.fill();
+      g.font = `34px ${D}`; g.fillStyle = "#fff"; g.fillText(fitText(g, b.heading, hw - 40), W / 2, hy + 40);
+      g.font = `600 17px ${B}`; g.fillStyle = "#d6effa"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 76);
+    }
+
+    // list panel + column labels
+    const ly = hy + headH + 24;
+    rr(g, hx, ly, hw, H - ly - 70, 12); g.fillStyle = "#a3def0"; g.fill();
+    const valW = 175, valRight = (i) => hx + hw - 20 - (valCols.length - 1 - i) * valW;
+    const nameX = hx + 84;
+    g.font = `700 13px ${B}`; g.fillStyle = "#1d5b86"; g.textAlign = "left";
+    g.fillText("#", hx + 26, ly + 20); g.fillText("MEMBER", nameX, ly + 20);
+    g.textAlign = "right";
+    valCols.forEach(([k], i) => g.fillText((b.isComp ? b.metricLabel : IMG_LABELS[k] + (k === "pGems" || k === "pXp" ? " " + b.scopeShort : "")).toUpperCase(), valRight(i), ly + 20));
+
+    // rows
+    b.rows.forEach((r, i) => {
+      const y = ly + 34 + i * (rowH + 6), x = hx + 8, w = hw - 16;
+      rr(g, x, y, w, rowH, 10); g.fillStyle = i % 2 ? "#ece4c6" : "#f6efd3"; g.fill();
+      const cy = y + rowH / 2 + 1;
+      // place: medals for the top three
+      g.textAlign = "center";
+      if (i < 3) {
+        const medal = ["#f6c700", "#b9c4cf", "#d08a4a"][i], rim = ["#9a7a00", "#6d7a87", "#7d4a1d"][i];
+        g.beginPath(); g.arc(hx + 34, cy, 19, 0, Math.PI * 2); g.fillStyle = medal; g.fill(); g.lineWidth = 3; g.strokeStyle = rim; g.stroke();
+        g.font = `22px ${D}`; outlined(g, String(i + 1), hx + 34, cy + 1, "#ffffff", rim, 5);
+      } else { g.font = `22px ${D}`; g.fillStyle = "#1d5b86"; g.fillText(String(i + 1), hx + 34, cy + 1); }
+      // name + rank chip
+      g.textAlign = "left"; g.font = `700 22px ${B}`; g.fillStyle = "#163a57";
+      const nameMax = valRight(0) - valW + 20 - nameX - 110;
+      const nm = fitText(g, r.name, nameMax);
+      g.fillText(nm, nameX, cy);
+      if (r.rank) {
+        const rx = nameX + g.measureText(nm).width + 12;
+        g.font = `700 12px ${B}`;
+        const cw = g.measureText(r.rank).width + 18;
+        rr(g, rx, cy - 11, cw, 22, 11); g.fillStyle = RANK_COLORS[r.rank.toLowerCase().replace(/[^a-z]/g, "")] || "#5b6b7a"; g.fill();
+        g.fillStyle = "#fff"; g.fillText(r.rank, rx + 9, cy + 1);
+      }
+      // values
+      g.textAlign = "right"; g.font = `24px ${D}`;
+      valCols.forEach(([k], j) => {
+        const v = r[k];
+        let text, color = "#163a57";
+        if (k === "pGems" || k === "pXp") {
+          if (v == null) { text = r.baselineOnly ? "new" : "–"; color = "#7a8a99"; }
+          else if (v === 0) { text = "0"; color = "#7a8a99"; }
+          else { text = signed(v); color = k === "pGems" ? "#1777c2" : "#3b9a0e"; }
+        } else text = fmt(v);
+        g.fillStyle = color; g.fillText(text, valRight(j), cy + 1);
+      });
+    });
+
+    // footer
+    g.textAlign = "center"; g.font = `600 15px ${B}`; g.fillStyle = "#bfe2f5";
+    g.fillText(`Standings as of ${dateFmt(Date.now(), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, W / 2, H - 24);
+    return cv;
+  }
+
+  function openImageDialog() {
+    if (!lastBoard || !lastBoard.rows.length) return;
+    let dlg = $("#img-dialog");
+    if (!dlg) {
+      dlg = document.createElement("div");
+      dlg.id = "img-dialog"; dlg.className = "img-dialog"; dlg.setAttribute("role", "dialog"); dlg.setAttribute("aria-modal", "true"); dlg.setAttribute("aria-label", "Standings image");
+      document.body.append(dlg);
+    }
+    dlg.hidden = false;
+    dlg.innerHTML = `<div class="img-box"><p class="img-status">Drawing the standings…</p></div>`;
+    drawStandings().then((cv) => {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const base = `pinkcat-${lastBoard.isComp ? "showdown" : "standings"}-${stamp}`;
+      const blobOf = (type) => new Promise((res) => cv.toBlob(res, type, 0.92));
+      blobOf("image/png").then((png) => {
+        const url = URL.createObjectURL(png);
+        dlg.innerHTML = `
+          <div class="img-box">
+            <div class="img-scroll"><img src="${url}" alt="Standings image"></div>
+            <p class="small img-status" id="img-msg">${downloadsApi ? "Save it, then post it wherever the clan hangs out." : "Right-click or long-press the image to save it."}</p>
+            <div class="row">
+              ${downloadsApi ? `<button type="button" class="primary" id="img-png">Save PNG</button><button type="button" id="img-jpg">Save JPG</button>` : ""}
+              <button type="button" id="img-close">Close</button>
+            </div>
+          </div>`;
+        const close = () => { dlg.hidden = true; URL.revokeObjectURL(url); };
+        $("#img-close").onclick = close;
+        dlg.onclick = (e) => { if (e.target === dlg) close(); };
+        $("#img-close").focus();
+        const save = async (type, ext) => {
+          const msg = $("#img-msg");
+          try {
+            await downloadsApi.save({ filename: `${base}.${ext}`, data: type === "image/png" ? png : await blobOf(type) });
+            msg.textContent = "Saved.";
+          } catch (e) {
+            msg.textContent = e && e.code === "declined" ? "Not saved." : e && e.code === "rate_limited" ? "A save prompt is already open." : "Saving isn't available here. Right-click or long-press the image to save it.";
+          }
+        };
+        if (downloadsApi) { $("#img-png").onclick = () => save("image/png", "png"); $("#img-jpg").onclick = () => save("image/jpeg", "jpg"); }
+      });
+    });
+  }
+  document.addEventListener("keydown", (e) => { const d = $("#img-dialog"); if (e.key === "Escape" && d && !d.hidden) $("#img-close").click(); });
 
   // ---------- countdown ----------
   function tick() {
@@ -1576,7 +1781,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
       };
       const delBtn = d.querySelector('[data-act="del"]');
       delBtn.onclick = () => {
-        if (delBtn.dataset.confirm) { data.members.splice(data.members.indexOf(m), 1); change(); }
+        if (delBtn.dataset.confirm) { if (data.comp) delete data.comp.base[key(m.name)]; data.members.splice(data.members.indexOf(m), 1); change(); }
         else { delBtn.dataset.confirm = "1"; delBtn.textContent = "Click again to remove " + m.name; }
       };
       d.querySelectorAll("[data-del-entry]").forEach((b) => {
@@ -1654,6 +1859,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     setCustom(b.dataset.days === "all" ? firstShot : days - (+b.dataset.days - 1), days);
     render();
   });
+  $("#img-open").addEventListener("click", openImageDialog);
   $("#board").addEventListener("click", (e) => {
     const b = e.target.closest("[data-sort]");
     if (!b) return;
@@ -1672,6 +1878,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   setInterval(tick, 1000);
 
   if (window.claude && window.claude.use) {
+    window.claude.use("downloads").then((d) => { downloadsApi = d; });
     window.claude.use("artifact").then((a) => { artifactApi = a; if (unlocked) renderEditor(); });
     window.claude.use("sample").then(async (s) => {
       sampleApi = s;
