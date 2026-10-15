@@ -619,8 +619,9 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     try { await Promise.all([document.fonts.load(`40px ${D}`), document.fonts.load(`700 22px ${B}`), document.fonts.load(`600 16px ${B}`)]); } catch {}
     const valCols = b.cols.filter(([k]) => k !== "name");
     const W = Math.max(900, 560 + 175 * valCols.length);
-    const rowH = 56, headH = 104, top = 70;
-    const listTop = top + 52 + headH + 24 + 34; // window top + banner room + heading + gap + column labels
+    // Showdown images go straight from the Pink Cat banner to the table; the others keep a heading bar.
+    const rowH = 56, headH = b.isComp ? 0 : 104, headGap = b.isComp ? 0 : 24, top = 70;
+    const listTop = top + 52 + headH + headGap + 34; // window top + banner room + heading + gap + column labels
     const H = listTop + b.rows.length * (rowH + 6) + 92;
     const S = 2, cv = document.createElement("canvas");
     cv.width = W * S; cv.height = H * S;
@@ -660,12 +661,14 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     // heading plate
     const hx = bx + 16, hw = bw - 32, hy = top + 52;
     g.textAlign = "center";
-    rr(g, hx, hy, hw, headH, 14); g.fillStyle = "#1d5b86"; g.fill();
-    g.font = `34px ${D}`; g.fillStyle = "#fff"; g.fillText(fitText(g, b.heading, hw - 40), W / 2, hy + 40);
-    g.font = `600 17px ${B}`; g.fillStyle = "#d6effa"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 76);
+    if (headH) {
+      rr(g, hx, hy, hw, headH, 14); g.fillStyle = "#1d5b86"; g.fill();
+      g.font = `34px ${D}`; g.fillStyle = "#fff"; g.fillText(fitText(g, b.heading, hw - 40), W / 2, hy + 40);
+      g.font = `600 17px ${B}`; g.fillStyle = "#d6effa"; g.fillText(fitText(g, b.sub, hw - 40), W / 2, hy + 76);
+    }
 
     // list panel + column labels
-    const ly = hy + headH + 24;
+    const ly = hy + headH + headGap;
     rr(g, hx, ly, hw, H - ly - 70, 12); g.fillStyle = "#a3def0"; g.fill();
     const valW = 175, valRight = (i) => hx + hw - 20 - (valCols.length - 1 - i) * valW;
     const nameX = hx + 84;
