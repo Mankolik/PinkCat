@@ -1,4 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pink Cat Clan Tracker</title>
+<meta name="description" content="Gems donated and XP contributed by Pink Cat [PINK] clan members in Pixel Worlds.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Fira+Sans:wght@500;600;700&display=swap">
 <style id="app-style">
 /* Layout: in-game windows floating over a dark block world. A gold-framed clan window holds totals and the
@@ -38,6 +44,8 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+html, body { margin: 0; }
+img { max-width: 100%; }
 [hidden] { display: none !important; }
 body {
   color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
@@ -131,6 +139,8 @@ code { background: var(--white); border: 1px solid var(--cyan-dk); border-radius
 .img-scroll img { display: block; width: 100%; height: auto; }
 .img-status { color: var(--ink); font-weight: 600; }
 #img-open { font-size: 15px; padding: 4px 14px; }
+.flash { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; max-width: calc(100% - 32px);
+  background: #2f9e1e; color: var(--white); font-weight: 700; padding: 10px 18px; border-radius: 12px; border: 3px solid #1f6f9f; box-shadow: 0 4px 0 rgba(0,0,0,.35); }
 .pill { display: inline-block; background: var(--navy); color: var(--white); border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: 13px; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 
 select, input, button { font: inherit; }
@@ -285,6 +295,8 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 .clock .slot b { font-family: var(--font-display); font-weight: 400; font-size: clamp(20px, 5vw, 26px); line-height: 1.1; color: var(--gold); text-shadow: 0 2px 0 rgba(0,0,0,.5); }
 .clock .slot span { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: #bfe2f5; }
 </style>
+</head>
+<body>
 
 <template id="shell-tpl">
 <main class="wrap">
@@ -338,12 +350,12 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 </footer>
 </template>
 <div id="app"></div>
-<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816},{"t":"2026-10-12T14:45:00.000Z","gems":1573330,"xp":1395842},{"t":"2026-10-15T20:30:00.000Z","gems":1573330,"xp":1514668}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788},{"t":"2026-10-12T14:45:00.000Z","gems":40112,"xp":1419894},{"t":"2026-10-15T20:30:00.000Z","gems":40112,"xp":1453279}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744},{"t":"2026-10-12T14:46:00.000Z","gems":1500,"xp":166286},{"t":"2026-10-15T20:31:00.000Z","gems":1500,"xp":233454}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666},{"t":"2026-10-12T14:45:00.000Z","gems":151500,"xp":3255646},{"t":"2026-10-15T20:30:00.000Z","gems":151500,"xp":3325744}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":1568679},{"t":"2026-10-15T20:31:00.000Z","gems":1,"xp":1596442}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355},{"t":"2026-10-12T14:45:00.000Z","gems":300000,"xp":1302356},{"t":"2026-10-15T20:30:00.000Z","gems":300000,"xp":1324827}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791},{"t":"2026-10-12T14:46:00.000Z","gems":182167,"xp":797792},{"t":"2026-10-15T20:31:00.000Z","gems":194249,"xp":841845}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":3851065},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":3900923}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":131167},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":139336}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":175325},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":217749}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":187421},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":199135}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":217568},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":221181}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":136474},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":148250}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956},{"t":"2026-10-12T14:46:00.000Z","gems":2000,"xp":276905},{"t":"2026-10-15T20:31:00.000Z","gems":2000,"xp":312879}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":167468},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":405979}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":546330},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":630973}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":194081},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":219725}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":218633},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":318834}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":27392},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":37032}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985},{"t":"2026-10-12T14:46:00.000Z","gems":100,"xp":114793},{"t":"2026-10-15T20:32:00.000Z","gems":167,"xp":115844}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787},{"t":"2026-10-12T14:46:00.000Z","gems":3000,"xp":156278},{"t":"2026-10-15T20:31:00.000Z","gems":3000,"xp":157542}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":40844},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":137714}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686},{"t":"2026-10-12T14:47:00.000Z","gems":6,"xp":218929},{"t":"2026-10-15T20:32:00.000Z","gems":1977,"xp":375989}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":41954},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":50111}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617},{"t":"2026-10-12T15:13:00.000Z","gems":2000000,"xp":1179171},{"t":"2026-10-15T20:37:00.000Z","gems":2010000,"xp":1240370}]},{"name":"_RASER_","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":3375},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":40574}]},{"name":"ALF","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":3678,"xp":23366},{"t":"2026-10-15T20:31:00.000Z","gems":3678,"xp":126431}]},{"name":"Obys","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":12562},{"t":"2026-10-15T20:31:00.000Z","gems":0,"xp":126799}]},{"name":"Leaf_","rank":"Member","entries":[{"t":"2026-10-15T20:20:00.000Z","gems":null,"xp":2280},{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":40563}]},{"name":"Kisuke44","rank":"Member","entries":[{"t":"2026-10-15T20:32:00.000Z","gems":0,"xp":33}]}],"selfName":"pdo","comp":{"name":"Clan Showdown","start":"2026-10-15T20:21:00.000Z","end":null,"metric":"pXp","base":{"sylvia":{"xp":1472103,"gems":1573330},"yeebuz":{"xp":1439127,"gems":40112},"bubonicplague":{"xp":195555,"gems":1500},"apples":{"xp":3272000,"gems":151500},"kekkekek":{"xp":1592342,"gems":0},"kaiji":{"xp":1322324,"gems":300000},"hrlege":{"xp":829073,"gems":182167},"minamazzini":{"xp":3870002,"gems":0},"nedski":{"xp":135275,"gems":0},"lin":{"xp":204615,"gems":0},"antsa":{"xp":196446,"gems":0},"tower":{"xp":217568,"gems":0},"endlesly":{"xp":144750,"gems":0},"arshia1111":{"xp":300410,"gems":2000},"larpson":{"xp":342286,"gems":0},"frog77":{"xp":611019,"gems":0},"mauz":{"xp":219725,"gems":0},"shadowpw":{"xp":280357,"gems":0},"_mew_":{"xp":33601,"gems":0},"herraharmaa":{"xp":115844,"gems":100},"luse":{"xp":157542,"gems":3000},"nyiram":{"xp":119943,"gems":0},"apple_":{"xp":366404,"gems":6},"cyboorg1312":{"xp":50111,"gems":0},"cleveland":{"xp":30242,"gems":0},"pdo":{"xp":1210638,"gems":2000000},"perk":{"xp":19263,"gems":0},"_raser_":{"xp":26534,"gems":0},"alf":{"xp":78006,"gems":3678},"obys":{"xp":86350,"gems":0},"leaf_":{"xp":2280,"gems":0},"kisuke44":{"xp":0,"gems":0}},"hidden":false}}</script>
 <script id="app-script">
 (function () {
   const DAY = 864e5;
-  let htmlOnly = false;
-  let SAVED = JSON.parse(document.getElementById("state").textContent);
+  // Filled from data.json at start-up; until then the page shows a loading state.
+  let SAVED = { anchor: "2026-10-25T18:00:00.000Z", periodDays: 14, members: [] };
+  let loaded = false;
   let data = structuredClone(SAVED);
   let dirty = 0;
   let sortKey = "pGems", sortDir = -1;
@@ -352,7 +364,6 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   let view = "period"; // "period" | "custom" | "comp"
   const compVisible = () => !!data.comp && (!data.comp.hidden || unlocked);
   let unlocked = false;
-  let artifactApi = null, sampleApi = null, sampleImages = false, sampleReady = false, sampleLimits = null;
   let cards = [];
   let cardSeq = 0;
 
@@ -502,6 +513,11 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   // ---------- leaderboard ----------
   function render() {
+    if (!loaded) {
+      $("#board").innerHTML = `<tbody><tr><td><div class="empty"><h3>Loading the clan…</h3></div></td></tr></tbody>`;
+      $("#tiles").innerHTML = "";
+      return;
+    }
     const ps = periods(Date.now());
     if (periodIdx >= ps.length) periodIdx = 0;
     if (view === "comp" && !compVisible()) view = "period";
@@ -595,7 +611,6 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   // Drawn on a canvas in the game's window style from the board that's on screen right now.
   // Showdown images always show only the ranking measure, like the visitor board.
   let lastBoard = null;
-  let downloadsApi = null;
   const IMG_LABELS = { pGems: "Gems", pXp: "XP", gems: "Lifetime gems", xp: "Lifetime XP" };
 
   function rr(g, x, y, w, h, r) {
@@ -740,9 +755,9 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         dlg.innerHTML = `
           <div class="img-box">
             <div class="img-scroll"><img src="${url}" alt="Standings image"></div>
-            <p class="small img-status" id="img-msg">${downloadsApi ? "Save it, then post it wherever the clan hangs out." : "Right-click or long-press the image to save it."}</p>
+            <p class="small img-status" id="img-msg">Save it, then post it wherever the clan hangs out.</p>
             <div class="row">
-              ${downloadsApi ? `<button type="button" class="primary" id="img-png">Save PNG</button><button type="button" id="img-jpg">Save JPG</button>` : ""}
+              <button type="button" class="primary" id="img-png">Save PNG</button><button type="button" id="img-jpg">Save JPG</button>
               <button type="button" id="img-close">Close</button>
             </div>
           </div>`;
@@ -751,15 +766,13 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         dlg.onclick = (e) => { if (e.target === dlg) close(); };
         $("#img-close").focus();
         const save = async (type, ext) => {
-          const msg = $("#img-msg");
-          try {
-            await downloadsApi.save({ filename: `${base}.${ext}`, data: type === "image/png" ? png : await blobOf(type) });
-            msg.textContent = "Saved.";
-          } catch (e) {
-            msg.textContent = e && e.code === "declined" ? "Not saved." : e && e.code === "rate_limited" ? "A save prompt is already open." : "Saving isn't available here. Right-click or long-press the image to save it.";
-          }
+          const blob = type === "image/png" ? png : await blobOf(type);
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob); a.download = `${base}.${ext}`;
+          document.body.append(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 10e3);
         };
-        if (downloadsApi) { $("#img-png").onclick = () => save("image/png", "png"); $("#img-jpg").onclick = () => save("image/jpeg", "jpg"); }
+        $("#img-png").onclick = () => save("image/png", "png"); $("#img-jpg").onclick = () => save("image/jpeg", "jpg");
       });
     });
   }
@@ -963,11 +976,11 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       });
       return;
     }
-    const saveNote = artifactApi ? "" : `<p class="small status err">Saving isn't available in this view. Open the tracker while signed in to claude.ai with edit access to save changes.</p>`;
-    const readNote = "Screenshots are read on your device by text recognition, which costs no Claude usage." + (canAskClaude() ? " If one comes out wrong, press Ask Claude on that card." : "");
+    const saveNote = ghToken() ? "" : `<p class="small status err">To save changes from this browser, add your GitHub access token under “Saving to GitHub” below.</p>`;
+    const readNote = "Screenshots are read on your device by text recognition. If one comes out wrong, fix the numbers on its card.";
     root.innerHTML = `
       <div class="editor">
-        ${dirty ? `<div class="savebar" role="status"><span>${dirty} unsaved change${dirty > 1 ? "s" : ""}. Everyone sees them once you save.</span><span class="row"><button class="ghost" id="discard-all" type="button">Discard</button><button class="primary" id="save-all" type="button" ${artifactApi ? "" : "disabled"}>Save for everyone</button></span></div>` : ""}
+        ${dirty ? `<div class="savebar" role="status"><span>${dirty} unsaved change${dirty > 1 ? "s" : ""}. Everyone sees them once you save.</span><span class="row"><button class="ghost" id="discard-all" type="button">Discard</button><button class="primary" id="save-all" type="button">Save for everyone</button></span></div>` : ""}
         <div class="panel">
           <div class="row" style="justify-content:space-between"><h2>Add screenshots</h2><button type="button" class="link" id="lock">Lock editor</button></div>
           ${saveNote}
@@ -987,6 +1000,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           <p class="small muted">Every screenshot is kept as a snapshot. Remove a wrong one here or rename a member.</p>
           <div id="members" class="cards"></div>
         </div>
+        ${ghPanelHtml()}
         <div class="panel">
           <h2>Your username</h2>
           <p class="small muted">"Personal Clan Stats" screenshots don't show a name, so they're filed under this member.</p>
@@ -1028,6 +1042,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     renderCards();
     renderMembers();
     wireCompPanel();
+    wireGhPanel();
   }
 
   function change() { dirty++; render(); renderEditor(); }
@@ -1344,7 +1359,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   // ---------- screenshot queue ----------
   // Each screenshot becomes a card: queued -> reading -> done | failed. Manual cards start as "manual".
-  // Screenshots are read on this device with Tesseract; Claude is only asked when someone presses "Ask Claude".
+  // Screenshots are read on this device with Tesseract.
   let paused = false, pauseMsg = "";
 
   function addFiles(list) {
@@ -1365,7 +1380,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   function pump() {
     if (ocrState === "failed") {
-      cards.filter((c) => c.status === "queued").forEach((c) => fail(c, "Text recognition couldn't start here. Type the numbers" + (canAskClaude() ? ", or press Ask Claude." : ".")));
+      cards.filter((c) => c.status === "queued").forEach((c) => fail(c, "Text recognition couldn't start here. Type the numbers instead."));
       return drawSummary();
     }
     if (!paused && !cards.some((c) => c.status === "reading")) {
@@ -1437,7 +1452,7 @@ importScripts(${JSON.stringify(TESS + "worker.min.js")});`;
     try {
       await ocrInit();
       const r = await readMemberShot(await fileRGBA(c.file), ocrRecognize, data.members.map((m) => m.name));
-      if (!r.ok) { fail(c, r.why + (canAskClaude() ? " You can type the numbers or press Ask Claude." : " Type the numbers instead.")); }
+      if (!r.ok) { fail(c, r.why + " Type the numbers instead."); }
       else {
         applyRead(c, r);
         c.problems = r.problems;
@@ -1452,57 +1467,9 @@ importScripts(${JSON.stringify(TESS + "worker.min.js")});`;
         redrawSameName(c);
       }
     } catch (e) {
-      if (ocrState !== "failed") fail(c, "This screenshot couldn't be read. Type the numbers" + (canAskClaude() ? ", or press Ask Claude." : "."));
+      if (ocrState !== "failed") fail(c, "This screenshot couldn't be read. Type the numbers instead.");
     }
     pump();
-  }
-
-  // ---------- Claude fallback (one card at a time, only on request) ----------
-  const canAskClaude = () => !!(sampleApi && sampleImages);
-  const PROMPT = `This is a screenshot from the game Pixel Worlds showing a clan member's info popup.
-The member's username is in the blue banner at the top of the popup. Below it are rows for Rank, Age, "donated" (next to a gem/diamond icon) and "contributed" (next to an XP icon).
-Numbers use spaces as thousand separators, e.g. "1 573 330" means 1573330.
-If the banner says "Personal Clan Stats" instead of a name, it's the player's own stats: set username to null and personal to true.
-Reply with only this JSON: {"username": string|null, "personal": boolean, "rank": string|null, "gems": integer|null, "xp": integer|null}
-gems = the donated number, xp = the contributed number. Copy the username exactly as shown. Use null for anything you cannot read clearly, and all nulls if this is not a clan member popup.`;
-
-  async function fitImage(file) {
-    const lim = sampleLimits && sampleLimits.images;
-    if (lim && file.size <= lim.maxInputBytes && lim.mediaTypes.includes(file.type)) return file;
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
-    const cv = document.createElement("canvas");
-    cv.width = Math.round(bmp.width * scale); cv.height = Math.round(bmp.height * scale);
-    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
-    return await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.9));
-  }
-
-  async function askClaude(c) {
-    const prev = c.status;
-    c.status = "asking"; drawCard(c);
-    try {
-      const r = await sampleApi.json(PROMPT, { images: [await fitImage(c.file)], cache: false, modelTier: "quick" });
-      const toInt = (v) => (v == null ? "" : String(v).replace(/\D/g, ""));
-      applyRead(c, { name: r && r.username ? String(r.username).trim() : "", rank: r && r.rank ? String(r.rank).trim() : "", gems: toInt(r && r.gems), xp: toInt(r && r.xp) });
-      c.problems = [];
-      c.personal = !!(r && r.personal);
-      if (c.personal) c.name = data.selfName || "";
-      c.status = "done";
-      c.msg = c.name || c.gems || c.xp ? "Read by Claude. Check it against the image, then add it." : "Claude says this doesn't look like a clan member popup.";
-      c.open = true;
-    } catch (e) {
-      const code = e && e.code;
-      if (code === "not_granted" || code === "sampling_disabled" || code === "images_unavailable" || code === "not_declared") sampleImages = false;
-      c.status = prev === "asking" ? "failed" : prev;
-      c.msg = {
-        rate_limited: "Claude's usage limit was reached. Try again in a few minutes, or type the numbers.",
-        not_granted: "Claude wasn't allowed to read screenshots here. Type the numbers instead.",
-        image_rejected: "That image couldn't be sent. Try a PNG or JPG screenshot.",
-        refused: "Claude couldn't read this image. Type the numbers instead.",
-        session_expired: "Your claude.ai sign-in expired. Sign in again, then try once more.",
-      }[code] || "Claude couldn't read it this time. Type the numbers, or try again later.";
-    }
-    drawCard(c); drawSummary();
   }
 
   // Problems that keep a card out of "Add all ready" (block) and things worth a glance (info).
@@ -1569,7 +1536,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
           <label><span>${XP_SVG}XP contributed (lifetime)</span><input type="text" inputmode="numeric" id="c${c.id}-xp" data-f="xp" value="${esc(c.xp)}"></label>
           <label><span>Screenshot taken${c.whenSrc ? ` <span class="src">(from ${esc(c.whenSrc)})</span>` : ""}</span><input type="datetime-local" id="c${c.id}-when" data-f="when" value="${esc(c.when)}"></label>
           <div class="notes">${notesHtml(iss)}</div>
-          <div class="actions"><button type="button" class="primary" data-act="add">Add to tracker</button>${c.file && c.status === "failed" && ocrState === "ready" ? `<button type="button" data-act="retry">Read again</button>` : ""}${c.file && canAskClaude() ? `<button type="button" data-act="claude" title="Uses your Claude usage for this one screenshot">Ask Claude</button>` : ""}<button type="button" data-act="drop">Remove</button></div>
+          <div class="actions"><button type="button" class="primary" data-act="add">Add to tracker</button>${c.file && c.status === "failed" && ocrState === "ready" ? `<button type="button" data-act="retry">Read again</button>` : ""}<button type="button" data-act="drop">Remove</button></div>
         </div>`;
       c.el.querySelectorAll("[data-f]").forEach((inp) => {
         inp.addEventListener("input", () => {
@@ -1590,7 +1557,6 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
       if (act === "drop") { dropCard(c); pump(); return; }
       if (act === "open") { c.open = true; drawCard(c); return; }
       if (act === "retry") { c.status = "queued"; c.msg = ""; drawCard(c); pump(); return; }
-      if (act === "claude") { askClaude(c); return; }
       if (act === "add") {
         const bl = issues(c).block.filter((t) => /missing/.test(t));
         if (bl.length) { const st = c.el.querySelector(".status"); st.className = "status err"; st.textContent = "Fill in the username, gems, XP and date before adding."; return; }
@@ -1760,58 +1726,113 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
     });
   }
 
-  // ---------- saving ----------
-  const HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>\n';
-  function buildHtml(state) {
-    const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Fira+Sans:wght@500;600;700&display=swap">';
-    const css = document.getElementById("app-style").textContent;
-    const tpl = document.getElementById("shell-tpl").innerHTML;
-    const js = document.getElementById("app-script").textContent;
-    const json = JSON.stringify(state).replace(/</g, "\\u003c");
-    return HEAD + "<title>Pink Cat Clan Tracker</title>\n" + fonts + '\n<style id="app-style">' + css + '</style>\n\n<template id="shell-tpl">' + tpl + '</template>\n<div id="app"></div>\n<script type="application/json" id="state">' + json + '<\/script>\n<script id="app-script">' + js + "<\/script>\n</body></html>";
+  // ---------- loading and saving (data.json in the GitHub repo) ----------
+  // Visitors read data.json from the site. Staff save through the GitHub API with their own access token,
+  // which commits data.json to the branch the site is published from; GitHub Pages then redeploys.
+  const GH = (() => {
+    const fallback = { owner: "Mankolik", repo: "PinkCat", branch: "claude/elegant-franklin-khspsu" };
+    const host = location.hostname.match(/^([^.]+)\.github\.io$/i);
+    const seg = location.pathname.split("/").filter(Boolean)[0];
+    return host && seg ? { ...fallback, owner: host[1], repo: seg } : fallback;
+  })();
+  const TOKEN_KEY = "pc-gh-token";
+  const ghToken = () => { try { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
+  function setToken(t, remember) {
+    try { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); if (t) (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, t); } catch {}
   }
+  async function gh(path, opts = {}) {
+    const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/${path}`, {
+      ...opts, cache: "no-store",
+      headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${ghToken()}`, "X-GitHub-Api-Version": "2022-11-28", ...(opts.headers || {}) },
+    });
+    if (!res.ok) { const e = new Error(`GitHub ${res.status}`); e.status = res.status; try { e.detail = (await res.json()).message; } catch {} throw e; }
+    return res.json();
+  }
+  const b64encode = (str) => { const bytes = new TextEncoder().encode(str); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+  const b64decode = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
+  async function readRemote() {
+    const f = await gh(`contents/data.json?ref=${encodeURIComponent(GH.branch)}`);
+    const text = f.content ? b64decode(f.content) : await (await fetch(f.download_url, { cache: "no-store" })).text();
+    return { sha: f.sha, data: JSON.parse(text) };
+  }
+  async function loadData() {
+    // Staff with a token read straight from GitHub so they never edit a copy the site hasn't redeployed yet.
+    if (ghToken()) { try { return (await readRemote()).data; } catch {} }
+    const res = await fetch(`data.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("data.json " + res.status);
+    return res.json();
+  }
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   async function save() {
     const btn = $("#save-all");
-    if (!htmlOnly) {
-      btn.disabled = true; btn.textContent = "Saving…";
-      try {
-        await artifactApi.publish({ "index.html": { content: buildHtml(data), contentType: "text/html" } });
-        SAVED = structuredClone(data); dirty = 0; render(); renderEditor();
-        return;
-      } catch (e) {
-        const code = e && e.code;
-        if (code !== "capability_disabled" && code !== "invalid_content" && code !== "read_only_path" && code !== "capability_removed" && code !== "transform_error") return saveFailed(btn, e);
-        htmlOnly = true;
-        btn.disabled = false; btn.textContent = "Save for everyone";
-      }
-    }
-    if (cards.length && !btn.dataset.confirm) {
-      btn.dataset.confirm = "1";
-      btn.textContent = `Save anyway (${cards.length} queued screenshot${cards.length > 1 ? "s" : ""} will be dropped)`;
-      return;
-    }
+    const say = (t) => { btn.closest(".savebar").querySelector("span").textContent = t; };
+    if (!ghToken()) { say("Add your GitHub access token under “Saving to GitHub” first."); return; }
     btn.disabled = true; btn.textContent = "Saving…";
     try {
-      await artifactApi.publish(buildHtml(data));
+      const remote = await readRemote();
+      if (!same(remote.data, SAVED)) {
+        btn.disabled = false; btn.textContent = "Save for everyone";
+        say("Someone else saved since you opened the page. Copy down what you changed, reload to get their version, then add it again.");
+        return;
+      }
+      await gh("contents/data.json", { method: "PUT", body: JSON.stringify({
+        message: `Update clan data (${dirty} change${dirty > 1 ? "s" : ""})`,
+        content: b64encode(JSON.stringify(data, null, 1) + "\n"), sha: remote.sha, branch: GH.branch,
+      }) });
+      SAVED = structuredClone(data); dirty = 0;
+      render(); renderEditor();
+      flash("Saved. Everyone sees it once the site updates, usually within a minute.");
     } catch (e) {
-      saveFailed(btn, e);
+      btn.disabled = false; btn.textContent = "Save for everyone";
+      say(e.status === 401 ? "GitHub didn't accept the token. Check it under “Saving to GitHub”."
+        : e.status === 403 || e.status === 404 ? "This token can't write to the repo. It needs Contents: Read and write on " + GH.repo + "."
+        : e.status === 409 ? "Someone else saved at the same moment. Reload, then add your changes again."
+        : "Saving failed (" + (e.detail || e.message) + "). Try again in a moment.");
     }
   }
-  function saveFailed(btn, e) {
-    const msg = {
-      conflict: "Someone else saved first. The page is reloading with their version; add your screenshots again.",
-      not_writer: "Your account can view this tracker but not change it. Ask the owner for edit access.",
-      not_granted: "Saving wasn't allowed. Check the artifact's permissions and try again.",
-      rate_limited: "Too many saves in a row. Wait a minute and try again.",
-    }[e && e.code] || "Saving failed. Try again in a moment.";
-    btn.disabled = false; btn.textContent = "Save for everyone";
-    btn.closest(".savebar").querySelector("span").textContent = msg;
+  function flash(text) {
+    let el = $("#flash");
+    if (!el) { el = document.createElement("div"); el.id = "flash"; el.className = "flash"; el.setAttribute("role", "status"); document.body.append(el); }
+    el.textContent = text; el.hidden = false;
+    clearTimeout(flash.t); flash.t = setTimeout(() => { el.hidden = true; }, 6000);
+  }
+
+  function ghPanelHtml() {
+    const has = !!ghToken();
+    return `
+      <div class="panel" id="gh-panel">
+        <h2>Saving to GitHub</h2>
+        <p class="small muted">Saves go into <code>data.json</code> in the <b>${esc(GH.owner)}/${esc(GH.repo)}</b> repo, branch <code>${esc(GH.branch)}</code>. Each staff member uses their own GitHub access token with <b>Contents: Read and write</b> on that repo only. It stays in this browser and is only sent to GitHub.</p>
+        <div class="row">
+          <input type="password" id="gh-token" placeholder="${has ? "Token saved on this device" : "github_pat_…"}" aria-label="GitHub access token" autocomplete="off">
+          <label class="small"><input type="checkbox" id="gh-remember" checked> Remember on this device</label>
+          <button type="button" id="gh-set">${has ? "Replace token" : "Use this token"}</button>
+          ${has ? `<button type="button" id="gh-check">Check access</button><button type="button" class="danger" id="gh-forget">Forget token</button>` : ""}
+        </div>
+        <p class="small" id="gh-msg">${has ? "A token is set on this device." : "No token yet, so changes can't be saved from this browser."}</p>
+      </div>`;
+  }
+  function wireGhPanel() {
+    const msg = (t) => { $("#gh-msg").textContent = t; };
+    $("#gh-set").onclick = () => {
+      const t = $("#gh-token").value.trim();
+      if (!t) { msg("Paste a token first."); return; }
+      setToken(t, $("#gh-remember").checked);
+      renderEditor(); $("#gh-check").click();
+    };
+    if ($("#gh-check")) $("#gh-check").onclick = async () => {
+      msg("Checking…");
+      try {
+        const r = await gh("");
+        msg(r.permissions && r.permissions.push ? `Ready: this token can save to ${GH.owner}/${GH.repo}.` : "This token can read the repo but not save to it. Give it Contents: Read and write.");
+      } catch (e) { msg(e.status === 401 ? "GitHub didn't accept this token." : e.status === 404 ? `This token can't see ${GH.owner}/${GH.repo}.` : "Couldn't reach GitHub: " + (e.detail || e.message)); }
+    };
+    if ($("#gh-forget")) $("#gh-forget").onclick = () => { setToken(""); renderEditor(); };
   }
 
   // ---------- boot ----------
   $("#app").replaceWith(document.getElementById("shell-tpl").content.cloneNode(true));
   unlocked = ss.get("pc-unlocked") === "1";
-  if (data.comp && !data.comp.hidden) view = "comp";
   $("#period-select").addEventListener("change", (e) => {
     const v = e.target.value;
     if (v === "custom") { const { days } = rangeBounds(); if (!custom) setCustom(days - 6, days); view = "custom"; }
@@ -1846,17 +1867,14 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   renderEditor();
   tick();
   setInterval(tick, 1000);
-
-  if (window.claude && window.claude.use) {
-    window.claude.use("downloads").then((d) => { downloadsApi = d; });
-    window.claude.use("artifact").then((a) => { artifactApi = a; if (unlocked) renderEditor(); });
-    window.claude.use("sample").then(async (s) => {
-      sampleApi = s;
-      if (s) { try { sampleLimits = await s.limits(); sampleImages = !!sampleLimits.images; } catch { sampleImages = false; } }
-      sampleReady = true;
-      if (unlocked) { renderEditor(); }
-      pump();
-    });
-  }
+  loadData().then((d) => {
+    SAVED = d; data = structuredClone(d); loaded = true;
+    if (data.comp && !data.comp.hidden) view = "comp";
+    render(); renderEditor();
+  }, () => {
+    $("#board").innerHTML = `<tbody><tr><td><div class="empty"><h3>The clan data didn't load</h3><p class="muted">Check your connection and reload the page.</p></div></td></tr></tbody>`;
+  });
 })();
 </script>
+</body>
+</html>
