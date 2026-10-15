@@ -38,6 +38,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
   background-color: var(--world);
@@ -87,6 +88,27 @@ p { margin: 0; }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .top .sub { max-width: 60ch; color: var(--ink); }
 .period-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Clan Showdown header: orange "Close"-button plate with an outlined title */
+.comp-head { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 14px 14px 12px; border-radius: 12px;
+  background: linear-gradient(#ffd25a 0 45%, var(--orange) 45% 100%); border: 3px solid #4aa8dc; box-shadow: inset 0 -4px 0 var(--orange-dk), 0 0 0 2px #1f6f9f, 0 5px 0 rgba(0,0,0,.3); }
+.comp-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.comp-head h2 { font-size: clamp(24px, 5vw, 34px); color: var(--white); text-shadow: var(--outline); }
+.comp-when { font-family: var(--font-display); font-size: clamp(18px, 4vw, 22px); color: var(--ink); font-variant-numeric: tabular-nums; }
+.comp-head .small { color: #5a2a00; font-weight: 600; }
+.comp-badge { display: inline-block; border-radius: 999px; padding: 1px 10px 2px; font-family: var(--font-display); font-size: 14px; letter-spacing: .08em; color: var(--white); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+.comp-badge.live { background: #2f9e1e; }
+.comp-badge.final { background: var(--navy); }
+th.picked { background: #ffe9a6; border-radius: 6px 6px 0 0; }
+.comp-board td.num:not(.small) { font-family: var(--font-display); font-size: 20px; }
+.comp-board td.gain.xp, .comp-board td.gain.gem { font-weight: 400; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.form-grid label { display: grid; gap: 3px; font-size: 12px; font-weight: 700; color: var(--navy); min-width: 0; }
+.form-grid label[hidden] { display: none; }
+textarea { width: 100%; font: inherit; font-weight: 600; color: var(--ink); background: var(--white); border: 2px solid var(--navy); border-radius: 4px; padding: 6px 10px; color-scheme: light; }
+code { background: var(--white); border: 1px solid var(--cyan-dk); border-radius: 4px; padding: 0 4px; font-size: .95em; }
+.base-table input { width: 9em; padding: 3px 6px; }
+.panel h3 { color: var(--navy); }
+
 /* date range slider: game progress-bar track with orange knobs */
 .range { display: grid; gap: 10px; background: var(--cyan); border-radius: 8px; padding: 10px 12px 12px; box-shadow: inset 0 -3px 0 var(--cyan-dk), inset 0 2px 0 rgba(255,255,255,.5); }
 .range-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -273,6 +295,11 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         <p class="sub">Gems donated and XP contributed by every clan member, refreshed from in-game screenshots.</p>
         <label class="period-pick"><span class="pill">Showing</span><select id="period-select"></select></label>
       </div>
+      <div class="comp-head" id="comp-head" hidden>
+        <div class="comp-title"><span class="comp-badge live" id="comp-badge">LIVE</span><h2 id="comp-name">Clan Showdown</h2></div>
+        <p class="comp-when" id="comp-when"></p>
+        <p class="small" id="comp-sub"></p>
+      </div>
       <div class="range" id="range-box" hidden>
         <div class="range-head">
           <span class="pill">From</span><output id="range-from"></output>
@@ -315,7 +342,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 </footer>
 </template>
 <div id="app"></div>
-<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816},{"t":"2026-10-12T14:45:00.000Z","gems":1573330,"xp":1395842}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788},{"t":"2026-10-12T14:45:00.000Z","gems":40112,"xp":1419894}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744},{"t":"2026-10-12T14:46:00.000Z","gems":1500,"xp":166286}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666},{"t":"2026-10-12T14:45:00.000Z","gems":151500,"xp":3255646}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":1568679}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355},{"t":"2026-10-12T14:45:00.000Z","gems":300000,"xp":1302356}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791},{"t":"2026-10-12T14:46:00.000Z","gems":182167,"xp":797792}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":3851065}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":131167}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":175325}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":187421}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":217568}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":136474}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956},{"t":"2026-10-12T14:46:00.000Z","gems":2000,"xp":276905}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":167468}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":546330}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":194081}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":218633}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":27392}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985},{"t":"2026-10-12T14:46:00.000Z","gems":100,"xp":114793}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787},{"t":"2026-10-12T14:46:00.000Z","gems":3000,"xp":156278}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":40844}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686},{"t":"2026-10-12T14:47:00.000Z","gems":6,"xp":218929}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":41954}]},{"name":"Cleveland","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":27306},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":30242}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617},{"t":"2026-10-12T15:13:00.000Z","gems":2000000,"xp":1179171}]},{"name":"Perk","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":19263}]},{"name":"_RASER_","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":3375}]},{"name":"ALF","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":3678,"xp":23366}]},{"name":"Obys","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":12562}]}],"selfName":"pdo"}</script>
+<script type="application/json" id="state">{"anchor":"2026-10-25T18:00:00.000Z","periodDays":14,"members":[{"name":"sylvia","rank":"Leader","entries":[{"t":"2026-10-10T19:25:00.000Z","gems":1573330,"xp":1330816},{"t":"2026-10-12T14:45:00.000Z","gems":1573330,"xp":1395842}]},{"name":"yeebuz","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":40112,"xp":1407788},{"t":"2026-10-12T14:45:00.000Z","gems":40112,"xp":1419894}]},{"name":"BubonicPlague","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":1500,"xp":84744},{"t":"2026-10-12T14:46:00.000Z","gems":1500,"xp":166286}]},{"name":"apples","rank":"Co-Leader","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":151500,"xp":3236666},{"t":"2026-10-12T14:45:00.000Z","gems":151500,"xp":3255646}]},{"name":"kekkekek","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":0,"xp":1558429},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":1568679}]},{"name":"Kaiji","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":300000,"xp":1302355},{"t":"2026-10-12T14:45:00.000Z","gems":300000,"xp":1302356}]},{"name":"Hrlege","rank":"Veteran","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":182167,"xp":797791},{"t":"2026-10-12T14:46:00.000Z","gems":182167,"xp":797792}]},{"name":"MinaMazzini","rank":"Veteran","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":3784917},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":3851065}]},{"name":"Nedski","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":103534},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":131167}]},{"name":"Lin","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":126845},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":175325}]},{"name":"Antsa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":155631},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":187421}]},{"name":"Tower","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":166602},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":217568}]},{"name":"Endlesly","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":111760},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":136474}]},{"name":"Arshia1111","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":2000,"xp":226956},{"t":"2026-10-12T14:46:00.000Z","gems":2000,"xp":276905}]},{"name":"Larpson","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":82828},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":167468}]},{"name":"Frog77","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":514713},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":546330}]},{"name":"mauZ","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":194074},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":194081}]},{"name":"ShadowPW","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":174391},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":218633}]},{"name":"_mew_","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":0,"xp":22879},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":27392}]},{"name":"HerraHarmaa","rank":"Member","entries":[{"t":"2026-10-10T19:31:00.000Z","gems":100,"xp":90985},{"t":"2026-10-12T14:46:00.000Z","gems":100,"xp":114793}]},{"name":"Luse","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":3000,"xp":114787},{"t":"2026-10-12T14:46:00.000Z","gems":3000,"xp":156278}]},{"name":"Nyiram","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":9198},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":40844}]},{"name":"Apple_","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":6,"xp":129686},{"t":"2026-10-12T14:47:00.000Z","gems":6,"xp":218929}]},{"name":"CYBOORG1312","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":16415},{"t":"2026-10-12T14:46:00.000Z","gems":0,"xp":41954}]},{"name":"Cleveland","rank":"Member","entries":[{"t":"2026-10-10T19:32:00.000Z","gems":0,"xp":27306},{"t":"2026-10-12T14:47:00.000Z","gems":0,"xp":30242}]},{"name":"pdo","rank":"Elder","entries":[{"t":"2026-10-10T19:30:00.000Z","gems":2000000,"xp":1160617},{"t":"2026-10-12T15:13:00.000Z","gems":2000000,"xp":1179171}]},{"name":"Perk","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":19263}]},{"name":"_RASER_","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":3375}]},{"name":"ALF","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":3678,"xp":23366}]},{"name":"Obys","rank":"Member","entries":[{"t":"2026-10-13T01:22:00.000Z","gems":0,"xp":12562}]},{"name":"Leaf_","rank":"","entries":[{"t":"2026-10-15T20:20:00.000Z","gems":null,"xp":2280}]}],"selfName":"pdo","comp":{"name":"Clan Showdown","start":"2026-10-15T20:21:00.000Z","end":null,"metric":"pXp","base":{"sylvia":{"xp":1395842,"gems":1573330},"yeebuz":{"xp":1439127,"gems":40112},"bubonicplague":{"xp":195555,"gems":1500},"apples":{"xp":3272000,"gems":151500},"kekkekek":{"xp":1592342,"gems":0},"kaiji":{"xp":1322324,"gems":300000},"hrlege":{"xp":829073,"gems":182167},"minamazzini":{"xp":3870002,"gems":0},"nedski":{"xp":135275,"gems":0},"lin":{"xp":204615,"gems":0},"antsa":{"xp":196446,"gems":0},"tower":{"xp":217568,"gems":0},"endlesly":{"xp":144750,"gems":0},"arshia1111":{"xp":300410,"gems":2000},"larpson":{"xp":342286,"gems":0},"frog77":{"xp":611019,"gems":0},"mauz":{"xp":219725,"gems":0},"shadowpw":{"xp":280357,"gems":0},"_mew_":{"xp":33601,"gems":0},"herraharmaa":{"xp":115844,"gems":100},"luse":{"xp":157542,"gems":3000},"nyiram":{"xp":119943,"gems":0},"apple_":{"xp":366404,"gems":6},"cyboorg1312":{"xp":50111,"gems":0},"cleveland":{"xp":30242,"gems":0},"pdo":{"xp":1210638,"gems":2000000},"perk":{"xp":19263,"gems":0},"_raser_":{"xp":26534,"gems":0},"alf":{"xp":78006,"gems":3678},"obys":{"xp":86350,"gems":0},"leaf_":{"xp":2280,"gems":null}},"hidden":false}}</script>
 <script id="app-script">
 (function () {
   const DAY = 864e5;
@@ -326,6 +353,8 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   let sortKey = "pGems", sortDir = -1;
   let periodIdx = 0;
   let custom = null; // {a, b}: day offsets from rangeBounds().first when filtering by dates
+  let view = "period"; // "period" | "custom" | "comp"
+  const compVisible = () => !!data.comp && (!data.comp.hidden || unlocked);
   let unlocked = false;
   let artifactApi = null, sampleApi = null, sampleImages = false, sampleReady = false, sampleLimits = null;
   let cards = [];
@@ -382,8 +411,8 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   }
   function drawRange() {
     const box = $("#range-box");
-    box.hidden = !custom;
-    if (!custom) return;
+    box.hidden = view !== "custom" || !custom;
+    if (box.hidden) return;
     const { first, days } = rangeBounds();
     const A = $("#range-a"), B = $("#range-b");
     [A, B].forEach((el) => { el.max = String(days); });
@@ -409,6 +438,10 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     B.setAttribute("aria-valuetext", $("#range-to").textContent);
   }
 
+  const diff = (a, b) => (a == null || b == null ? null : a - b);
+  const lastGems = (list) => { for (let i = list.length - 1; i >= 0; i--) if (list[i].gems != null) return list[i].gems; return null; };
+  const firstGems = (list) => { for (const e of list) if (e.gems != null) return e.gems; return null; };
+
   function stats(m, p) {
     const es = m.entries.slice().sort((x, y) => Date.parse(x.t) - Date.parse(y.t));
     const upTo = es.filter((e) => Date.parse(e.t) < p.end);
@@ -420,52 +453,119 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const baselineOnly = !before.length && latest === base;
     return {
       name: m.name, rank: m.rank, lastT: Date.parse(latest.t), updated, baselineOnly,
-      gems: latest.gems, xp: latest.xp,
-      pGems: baselineOnly ? null : latest.gems - base.gems,
+      gems: lastGems(upTo), xp: latest.xp,
+      pGems: baselineOnly ? null : diff(latest.gems, base.gems),
       pXp: baselineOnly ? null : latest.xp - base.xp,
     };
+  }
+
+  // ---------- Clan Showdown (competition) ----------
+  // data.comp = { name, start, end (ISO or null = until closed), metric: "pXp" | "pGems" | "xp" | "gems",
+  //               base: { lowercased name: { xp, gems } }, hidden }
+  // Scores count screenshots taken from `start` up to `end`, measured against each member's baseline.
+  // A member without a stored baseline starts from their last screenshot before the start (or their first one after it).
+  const METRICS = { pXp: "XP earned since the start", pGems: "Gems donated since the start", xp: "Lifetime XP contributed", gems: "Lifetime gems donated" };
+  const METRIC_SHORT = { pXp: "XP earned", pGems: "Gems donated", xp: "Lifetime XP", gems: "Lifetime gems" };
+  const compEnd = () => (data.comp && data.comp.end ? Date.parse(data.comp.end) : Infinity);
+  const compLive = () => !!data.comp && Date.now() < compEnd();
+  function compStats(m) {
+    const c = data.comp, start = Date.parse(c.start), end = compEnd();
+    const es = m.entries.slice().sort((x, y) => Date.parse(x.t) - Date.parse(y.t));
+    const upTo = es.filter((e) => Date.parse(e.t) < end);
+    if (!upTo.length) return null;
+    const before = upTo.filter((e) => Date.parse(e.t) < start), after = upTo.filter((e) => Date.parse(e.t) >= start);
+    const b = c.base[key(m.name)] || {};
+    const xpBase = b.xp != null ? b.xp : before.length ? before[before.length - 1].xp : after[0].xp;
+    const gemsBase = b.gems != null ? b.gems : lastGems(before) ?? firstGems(after);
+    const last = after[after.length - 1];
+    const latest = upTo[upTo.length - 1];
+    return {
+      name: m.name, rank: m.rank, lastT: Date.parse(latest.t), updated: !!last, baselineOnly: false,
+      gems: lastGems(upTo), xp: latest.xp,
+      pXp: last ? last.xp - xpBase : 0,
+      pGems: last ? diff(last.gems, gemsBase) : 0,
+    };
+  }
+  function compStatus() {
+    const c = data.comp, end = compEnd(), now = Date.now();
+    if (now >= end) return { live: false, text: `Finished ${dateFmt(end, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` };
+    if (end === Infinity) return { live: true, text: "No end date: runs until it's closed" };
+    let s = Math.floor((end - now) / 1000);
+    const d = Math.floor(s / 86400); s -= d * 86400;
+    const h = Math.floor(s / 3600); s -= h * 3600;
+    const mi = Math.floor(s / 60); s -= mi * 60;
+    return { live: true, text: `Ends in ${d ? d + "d " : ""}${String(h).padStart(2, "0")}h ${String(mi).padStart(2, "0")}m ${String(s).padStart(2, "0")}s` };
+  }
+  function drawCompHead() {
+    const box = $("#comp-head");
+    box.hidden = view !== "comp" || !data.comp;
+    if (box.hidden) return;
+    const st = compStatus();
+    $("#comp-name").textContent = data.comp.name || "Clan Showdown";
+    $("#comp-badge").textContent = st.live ? "LIVE" : "FINAL";
+    $("#comp-badge").className = "comp-badge " + (st.live ? "live" : "final");
+    $("#comp-when").textContent = st.text;
+    $("#comp-sub").textContent = `Ranked by ${METRICS[data.comp.metric].replace(/^\w/, (ch) => ch.toLowerCase()).replace(/^xP/, "XP")} · started ${dateFmt(Date.parse(data.comp.start), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
   }
 
   // ---------- leaderboard ----------
   function render() {
     const ps = periods(Date.now());
     if (periodIdx >= ps.length) periodIdx = 0;
-    if (custom) setCustom(custom.a, custom.b); // keep the range inside today's bounds
-    const p = custom ? customPeriod() : ps[periodIdx];
+    if (view === "comp" && !compVisible()) view = "period";
+    if (view === "custom") setCustom(custom.a, custom.b); // keep the range inside today's bounds
     const sel = $("#period-select");
-    sel.innerHTML = ps.map((q, i) => `<option value="${i}">${q.current ? "Current period" : "Past period"}: ${shortDate(q.start)} to ${shortDate(q.end)}</option>`).join("")
+    sel.innerHTML = (compVisible() ? `<option value="comp">${esc(data.comp.name || "Clan Showdown")} (${compLive() ? "live" : "results"})</option>` : "")
+      + ps.map((q, i) => `<option value="${i}">${q.current ? "Current period" : "Past period"}: ${shortDate(q.start)} to ${shortDate(q.end)}</option>`).join("")
       + `<option value="custom">Custom dates (slider)</option>`;
-    sel.value = custom ? "custom" : String(periodIdx);
+    sel.value = view === "comp" ? "comp" : view === "custom" ? "custom" : String(periodIdx);
     drawRange();
-    const scope = custom ? "in range" : "this period";
+    drawCompHead();
 
-    const rows = data.members.map((m) => stats(m, p)).filter(Boolean);
-    const sumG = rows.reduce((s, r) => s + (r.pGems || 0), 0);
-    const sumX = rows.reduce((s, r) => s + (r.pXp || 0), 0);
+    const isComp = view === "comp";
+    const p = isComp ? null : view === "custom" ? customPeriod() : ps[periodIdx];
+    const scope = isComp ? "since the start" : view === "custom" ? "in range" : "this period";
+    const rows = data.members.map((m) => (isComp ? compStats(m) : stats(m, p))).filter(Boolean);
     const upd = rows.filter((r) => r.updated).length;
-    $("#tiles").innerHTML = `
-      <div class="tile"><span class="eyebrow">${GEM_SVG}Gems donated ${scope}</span><span class="big num gem">${fmt(sumG)}</span></div>
-      <div class="tile"><span class="eyebrow">${XP_SVG}XP earned ${scope}</span><span class="big num xp">${fmt(sumX)}</span></div>
-      <div class="tile"><span class="eyebrow">Members updated ${scope}</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
+    const total = (k) => rows.reduce((s, r) => s + (r[k] || 0), 0);
+    const pre = !isComp && view === "period" && Date.now() < p.start; // before the very first period has begun
 
-    const pre = !custom && Date.now() < p.start; // before the very first period has begun
-    $("#board-note").textContent = (custom
-      ? `Gains from each member's last screenshot before ${shortDate(p.start)} to their last one by the end of ${shortDate(p.end - 1)}.`
-      : pre
-      ? `The first period starts ${dateFmt(p.start, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. Screenshots added before then are each member's starting point.`
-      : `Period gains count from each member's last screenshot before ${shortDate(p.start)}.`) + (dirty ? " Showing unsaved changes." : "");
+    if (isComp) {
+      // Everyone sees only the measure the staff picked; unlocked staff see all four.
+      const mk = data.comp.metric;
+      const icon = mk === "pGems" || mk === "gems" ? GEM_SVG : XP_SVG, cls = mk === "pGems" || mk === "gems" ? "gem" : "xp";
+      $("#tiles").innerHTML = `
+        <div class="tile"><span class="eyebrow">${icon}${METRICS[mk]}, whole clan</span><span class="big num ${cls}">${fmt(total(mk))}</span></div>
+        <div class="tile"><span class="eyebrow">Members with a new screenshot</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
+      $("#board-note").textContent = `Scores count screenshots added since the showdown started, against each member's starting value.` + (dirty ? " Showing unsaved changes." : "");
+    } else {
+      $("#tiles").innerHTML = `
+        <div class="tile"><span class="eyebrow">${GEM_SVG}Gems donated ${scope}</span><span class="big num gem">${fmt(total("pGems"))}</span></div>
+        <div class="tile"><span class="eyebrow">${XP_SVG}XP earned ${scope}</span><span class="big num xp">${fmt(total("pXp"))}</span></div>
+        <div class="tile"><span class="eyebrow">Members updated ${scope}</span><span class="big num">${upd} <span class="muted" style="font-size:.6em">of ${rows.length}</span></span></div>`;
+      $("#board-note").textContent = (view === "custom"
+        ? `Gains from each member's last screenshot before ${shortDate(p.start)} to their last one by the end of ${shortDate(p.end - 1)}.`
+        : pre
+        ? `The first period starts ${dateFmt(p.start, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. Screenshots added before then are each member's starting point.`
+        : `Period gains count from each member's last screenshot before ${shortDate(p.start)}.`) + (dirty ? " Showing unsaved changes." : "");
+    }
+    $("#board-title").textContent = isComp ? "Showdown Leaderboard" : "Clan Members";
+
+    let cols = [
+      ["name", "Member"], ["pGems", "Gems " + scope], ["pXp", "XP " + scope],
+      ["gems", "Lifetime gems donated"], ["xp", "Lifetime XP contributed"], ["lastT", "Last screenshot"],
+    ];
+    if (isComp && !unlocked) cols = [["name", "Member"], [data.comp.metric, METRIC_SHORT[data.comp.metric]], ["lastT", "Last screenshot"]];
+    if (!cols.some(([k]) => k === sortKey)) { sortKey = isComp ? data.comp.metric : "pGems"; sortDir = -1; }
 
     const val = (r, k) => (k === "name" ? r.name.toLowerCase() : r[k] ?? -Infinity);
     rows.sort((a, b) => {
       const va = val(a, sortKey), vb = val(b, sortKey);
-      return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir || b.xp - a.xp || a.name.localeCompare(b.name);
+      // Ties fall back to lifetime XP, except on the visitor showdown board, where that value is hidden.
+      return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir || (isComp && !unlocked ? 0 : b.xp - a.xp) || a.name.localeCompare(b.name);
     });
 
-    const cols = [
-      ["name", "Member"], ["pGems", "Gems " + scope], ["pXp", "XP " + scope],
-      ["gems", "Lifetime gems donated"], ["xp", "Lifetime XP contributed"], ["lastT", "Last screenshot"],
-    ];
-    const th = cols.map(([k, label]) => `<th scope="col"><button type="button" data-sort="${k}" ${sortKey === k ? `aria-sort="${sortDir < 0 ? "descending" : "ascending"}"` : ""}>${label}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</button></th>`).join("");
+    const th = cols.map(([k, label]) => `<th scope="col" class="${isComp && k === data.comp.metric ? "picked" : ""}"><button type="button" data-sort="${k}" ${sortKey === k ? `aria-sort="${sortDir < 0 ? "descending" : "ascending"}"` : ""}>${label}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</button></th>`).join("");
     if (!rows.length) {
       $("#board").innerHTML = `<tbody><tr><td colspan="7"><div class="empty"><h3>No members yet</h3><p class="muted">Unlock the editor at the bottom of the page and add a clan member screenshot to start.</p></div></td></tr></tbody>`;
       return;
@@ -473,18 +573,21 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const gainCell = (v, cls, r) => pre
       ? `<td class="num muted" title="Starting point for the first period">start</td>`
       : v == null
-      ? `<td class="num muted" title="First screenshot. Gains show from the next one.">new</td>`
+      ? (r.baselineOnly ? `<td class="num muted" title="First screenshot. Gains show from the next one.">new</td>` : `<td class="num muted" title="No gem number on file for this member yet">–</td>`)
       : `<td class="num gain ${v === 0 ? "zero" : cls}">${v === 0 ? "0" : signed(v)}</td>`;
+    const cell = (k, r) => k === "pGems" ? gainCell(r.pGems, "gem", r)
+      : k === "pXp" ? gainCell(r.pXp, "xp", r)
+      : k === "gems" || k === "xp" ? `<td class="num${isComp && !unlocked ? " big-score" : ""}">${fmt(r[k])}</td>`
+      : k === "lastT" ? `<td class="num muted small">${dateFmt(r.lastT, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>`
+      : "";
+    const noUpd = isComp ? "no screenshot since the start" : "no update " + scope;
     $("#board").innerHTML = `<thead><tr><th scope="col">#</th>${th}</tr></thead><tbody>` + rows.map((r, i) => `
       <tr>
         <td class="rankno">${i + 1}</td>
-        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip r-${r.rank.toLowerCase().replace(/[^a-z]/g, "")}">${esc(r.rank)}</span>` : ""} ${!r.updated && !pre ? `<span class="chip warn">no update ${scope}</span>` : ""}</span></div></td>
-        ${gainCell(r.pGems, "gem", r)}
-        ${gainCell(r.pXp, "xp", r)}
-        <td class="num">${fmt(r.gems)}</td>
-        <td class="num">${fmt(r.xp)}</td>
-        <td class="num muted small">${dateFmt(r.lastT, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+        <td><div class="who"><b>${esc(r.name)}</b><span>${r.rank ? `<span class="chip r-${r.rank.toLowerCase().replace(/[^a-z]/g, "")}">${esc(r.rank)}</span>` : ""} ${!r.updated && !pre ? `<span class="chip warn">${noUpd}</span>` : ""}</span></div></td>
+        ${cols.slice(1).map(([k]) => cell(k, r)).join("")}
       </tr>`).join("") + "</tbody>";
+    $("#board").classList.toggle("comp-board", isComp && !unlocked);
   }
 
   // ---------- countdown ----------
@@ -501,9 +604,171 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const utc = new Date(end).toUTCString().replace(":00 GMT", " UTC");
     $("#deadline-text").textContent = `${utc} · your time: ${dateFmt(end, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
     if (periods(now).length !== periods(now - 1000).length) render();
+    else if (data.comp && compEnd() <= now && compEnd() > now - 1000) { render(); if (unlocked) renderEditor(); }
+    else if (view === "comp") drawCompHead();
   }
 
   // ---------- editor ----------
+  // ---------- Clan Showdown: staff controls ----------
+  let compDraft = null; // settings for a showdown that hasn't started yet
+  const LENGTHS = [["", "No end date (close it by hand)"], ["1", "1 day"], ["3", "3 days"], ["7", "7 days"], ["14", "14 days"], ["30", "30 days"], ["date", "Until a date I pick"]];
+  const lastEntryBefore = (m, ms) => m.entries.filter((e) => Date.parse(e.t) < ms).sort((a, b) => Date.parse(a.t) - Date.parse(b.t)).pop();
+  function newDraft() {
+    const start = Date.now();
+    const base = {};
+    data.members.forEach((m) => { const e = lastEntryBefore(m, start + 60e3); base[key(m.name)] = { xp: e ? e.xp : null, gems: e ? e.gems : null }; });
+    return { name: "Clan Showdown", start: localInput(start), len: "", endAt: localInput(start + 7 * DAY), metric: "pXp", base, newMembers: [] };
+  }
+  // "name: 1.234.567" per line. Names match ignoring case, then ignoring symbols, then allowing one typo.
+  function parseList(text) {
+    const out = { matched: [], unknown: [] };
+    const squash = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    text.split(/\r?\n/).forEach((line) => {
+      const m = line.match(/^\s*([^:]+?)\s*[:=\-–]\s*([\d.,'\s]+)\s*$/);
+      if (!m) return;
+      const name = m[1].trim(), xp = +m[2].replace(/\D/g, "");
+      if (!m[2].replace(/\D/g, "")) return;
+      const hit = data.members.find((x) => key(x.name) === key(name))
+        || data.members.find((x) => squash(x.name) === squash(name))
+        || (squash(name).length >= 5 ? data.members.find((x) => lev(squash(x.name), squash(name)) <= 1) : null);
+      if (hit) out.matched.push({ member: hit, typed: name, xp }); else out.unknown.push({ name, xp });
+    });
+    return out;
+  }
+  function lengthToEnd(startMs, len, endAt) {
+    if (!len) return null;
+    if (len === "date") { const t = Date.parse(endAt); return isNaN(t) ? null : new Date(t).toISOString(); }
+    return new Date(startMs + +len * DAY).toISOString();
+  }
+
+  function compPanelHtml() {
+    const metricOpts = (sel) => Object.entries(METRICS).map(([k, v]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${v}</option>`).join("");
+    const lenOpts = (sel) => LENGTHS.map(([k, v]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${v}</option>`).join("");
+    const c = data.comp;
+    const baseRows = (getBase, extra) => `
+      <div class="scroll"><table class="entries base-table"><thead><tr><th>Member</th><th>Starting XP</th><th>Starting gems</th></tr></thead><tbody>
+        ${data.members.slice().sort((a, b) => a.name.localeCompare(b.name)).map((m) => {
+          const i = data.members.indexOf(m), b = getBase(m) || {};
+          return `<tr><td>${esc(m.name)}</td>
+            <td><input type="text" inputmode="numeric" id="cb-x-${i}" data-base="xp" data-m="${i}" value="${b.xp != null ? b.xp : ""}" aria-label="Starting XP for ${esc(m.name)}"></td>
+            <td><input type="text" inputmode="numeric" id="cb-g-${i}" data-base="gems" data-m="${i}" value="${b.gems != null ? b.gems : ""}" placeholder="not known" aria-label="Starting gems for ${esc(m.name)}"></td></tr>`;
+        }).join("")}
+        ${extra || ""}
+      </tbody></table></div>`;
+    if (!c) {
+      const d = compDraft || (compDraft = newDraft());
+      return `
+        <div class="panel" id="comp-panel">
+          <h2>Start a Clan Showdown</h2>
+          <p class="small muted">A showdown ranks members from their starting values. While it's open it's the first thing everyone sees on the page. Screenshots keep updating it as usual.</p>
+          <div class="form-grid">
+            <label>Name<input type="text" id="cd-name" value="${esc(d.name)}"></label>
+            <label>Starts<input type="datetime-local" id="cd-start" value="${esc(d.start)}"></label>
+            <label>Length<select id="cd-len">${lenOpts(d.len)}</select></label>
+            <label ${d.len === "date" ? "" : "hidden"}>Ends<input type="datetime-local" id="cd-end" value="${esc(d.endAt)}"></label>
+            <label>Rank everyone by<select id="cd-metric">${metricOpts(d.metric)}</select></label>
+          </div>
+          <p class="small muted">Visitors only see the measure you rank by. Staff with the editor unlocked see all four.</p>
+          <h3>Starting values</h3>
+          <p class="small muted">Filled in from each member's last screenshot. Paste a list like <code>apples: 3.272.000</code> (one per line) to set starting XP in one go.</p>
+          <textarea id="cd-paste" rows="4" placeholder="apples: 3.272.000&#10;kaiji: 1.322.324"></textarea>
+          <div class="row"><button type="button" id="cd-apply">Use this list</button><span class="small" id="cd-paste-note"></span></div>
+          ${baseRows((m) => d.base[key(m.name)], d.newMembers.map((n) => `<tr><td>${esc(n.name)} <span class="chip warn">new member</span></td><td class="num">${fmt(n.xp)}</td><td class="muted small">added with XP only</td></tr>`).join(""))}
+          <div class="row"><button type="button" class="primary" id="cd-go">Start the showdown</button></div>
+        </div>`;
+    }
+    const st = compStatus();
+    const startMs = Date.parse(c.start);
+    const len = !c.end ? "" : "date";
+    return `
+      <div class="panel" id="comp-panel">
+        <h2>${esc(c.name || "Clan Showdown")}</h2>
+        <p class="small"><span class="comp-badge ${st.live ? "live" : "final"}">${st.live ? "LIVE" : "FINAL"}</span> ${esc(st.text)} · started ${dateFmt(startMs, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}${c.hidden ? " · <b>hidden from visitors</b>" : ""}</p>
+        <div class="form-grid">
+          <label>Name<input type="text" id="cc-name" value="${esc(c.name || "")}"></label>
+          <label>Rank everyone by<select id="cc-metric">${metricOpts(c.metric)}</select></label>
+          <label>Length<select id="cc-len">${LENGTHS.map(([k, v]) => `<option value="${k}" ${k === len ? "selected" : ""}>${k && k !== "date" ? v + " from the start" : v}</option>`).join("")}</select></label>
+          <label ${len === "date" ? "" : "hidden"}>Ends<input type="datetime-local" id="cc-end" value="${c.end ? localInput(Date.parse(c.end)) : localInput(Date.now() + 7 * DAY)}"></label>
+        </div>
+        <div class="row">
+          ${st.live ? `<button type="button" class="danger" id="cc-close">End the showdown now</button>` : `<button type="button" id="cc-reopen">Reopen with no end date</button>`}
+          <button type="button" id="cc-hide">${c.hidden ? "Show it to visitors again" : "Hide it from visitors"}</button>
+          <button type="button" class="danger" id="cc-delete">Delete the showdown</button>
+        </div>
+        <details class="member"><summary><b>Starting values</b><span class="small muted">edit if a number was wrong</span></summary>
+          <div class="inner">
+            <textarea id="cd-paste" rows="3" placeholder="apples: 3.272.000"></textarea>
+            <div class="row"><button type="button" id="cd-apply">Use this list</button><span class="small" id="cd-paste-note"></span></div>
+            ${baseRows((m) => c.base[key(m.name)])}
+          </div>
+        </details>
+      </div>`;
+  }
+
+  function wireCompPanel() {
+    const panel = $("#comp-panel");
+    if (!panel) return;
+    const c = data.comp;
+    const num = (v) => (String(v).replace(/\D/g, "") === "" ? null : +String(v).replace(/\D/g, ""));
+    const baseOf = (m) => { const store = c ? c.base : compDraft.base; return (store[key(m.name)] = store[key(m.name)] || { xp: null, gems: null }); };
+    panel.querySelectorAll("[data-base]").forEach((inp) => {
+      inp.addEventListener("change", () => {
+        const m = data.members[+inp.dataset.m];
+        baseOf(m)[inp.dataset.base] = num(inp.value);
+        if (c) change();
+      });
+    });
+    $("#cd-apply").onclick = () => {
+      const r = parseList($("#cd-paste").value);
+      r.matched.forEach(({ member, xp }) => { baseOf(member).xp = xp; });
+      let note = `${r.matched.length} matched.`;
+      const typos = r.matched.filter((x) => key(x.typed) !== key(x.member.name)).map((x) => `${x.typed} → ${x.member.name}`);
+      if (typos.length) note += ` Matched by spelling: ${typos.join(", ")}.`;
+      if (!c) {
+        compDraft.newMembers = r.unknown;
+        if (r.unknown.length) note += ` New members (XP only): ${r.unknown.map((u) => u.name).join(", ")}.`;
+      } else if (r.unknown.length) note += ` Not in the tracker, skipped: ${r.unknown.map((u) => u.name).join(", ")}.`;
+      if (c) change(); else renderEditor();
+      $("#cd-paste-note").textContent = note;
+    };
+    if (!c) {
+      const d = compDraft;
+      $("#cd-name").oninput = (e) => { d.name = e.target.value; };
+      $("#cd-start").onchange = (e) => { d.start = e.target.value; };
+      $("#cd-len").onchange = (e) => { d.len = e.target.value; renderEditor(); };
+      if ($("#cd-end")) $("#cd-end").onchange = (e) => { d.endAt = e.target.value; };
+      $("#cd-metric").onchange = (e) => { d.metric = e.target.value; };
+      $("#cd-go").onclick = () => {
+        const startMs = isNaN(Date.parse(d.start)) ? Date.now() : Date.parse(d.start);
+        const base = {};
+        Object.entries(d.base).forEach(([k, v]) => { base[k] = { xp: v.xp, gems: v.gems }; });
+        d.newMembers.forEach((n) => {
+          if (data.members.some((x) => key(x.name) === key(n.name))) return;
+          data.members.push({ name: n.name, rank: "", entries: [{ t: new Date(startMs - 60e3).toISOString(), gems: null, xp: n.xp }] });
+          base[key(n.name)] = { xp: n.xp, gems: null };
+        });
+        data.comp = { name: d.name.trim() || "Clan Showdown", start: new Date(startMs).toISOString(), end: lengthToEnd(startMs, d.len, d.endAt), metric: d.metric, base, hidden: false };
+        compDraft = null;
+        view = "comp";
+        change();
+      };
+      return;
+    }
+    $("#cc-name").onchange = (e) => { c.name = e.target.value.trim() || "Clan Showdown"; change(); };
+    $("#cc-metric").onchange = (e) => { c.metric = e.target.value; sortKey = c.metric; sortDir = -1; change(); };
+    $("#cc-len").onchange = (e) => {
+      const v = e.target.value;
+      if (v === "date") { $("#cc-end").closest("label").hidden = false; return; }
+      c.end = lengthToEnd(Date.parse(c.start), v, null); change();
+    };
+    $("#cc-end").onchange = (e) => { const t = Date.parse(e.target.value); if (!isNaN(t)) { c.end = new Date(t).toISOString(); change(); } };
+    const twoStep = (btn, label, act) => { btn.onclick = () => { if (btn.dataset.confirm) act(); else { btn.dataset.confirm = "1"; btn.textContent = label; } }; };
+    if ($("#cc-close")) twoStep($("#cc-close"), "Click again to end it now", () => { c.end = new Date().toISOString(); change(); });
+    if ($("#cc-reopen")) $("#cc-reopen").onclick = () => { c.end = null; change(); };
+    $("#cc-hide").onclick = () => { c.hidden = !c.hidden; change(); };
+    twoStep($("#cc-delete"), "Click again to delete it for good", () => { data.comp = null; view = "period"; change(); });
+  }
+
   function renderEditor() {
     const root = $("#editor-root");
     if (!unlocked) {
@@ -518,7 +783,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         </div>`;
       $("#unlock-form").addEventListener("submit", (e) => {
         e.preventDefault();
-        if ($("#pw").value.trim().toLowerCase() === "exp") { unlocked = true; ss.set("pc-unlocked", "1"); renderEditor(); }
+        if ($("#pw").value.trim().toLowerCase() === "exp") { unlocked = true; ss.set("pc-unlocked", "1"); render(); renderEditor(); }
         else $("#pw-err").hidden = false;
       });
       return;
@@ -541,6 +806,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           <div class="queuebar" id="queue-bar" hidden></div>
           <div class="cards" id="cards"></div>
         </div>
+        ${compPanelHtml()}
         <div class="panel">
           <h2>Members and history</h2>
           <p class="small muted">Every screenshot is kept as a snapshot. Remove a wrong one here or rename a member.</p>
@@ -564,7 +830,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           </div>
         </div>
       </div>`;
-    $("#lock").onclick = () => { unlocked = false; ss.del("pc-unlocked"); renderEditor(); };
+    $("#lock").onclick = () => { unlocked = false; ss.del("pc-unlocked"); render(); renderEditor(); };
     $("#manual").onclick = () => { addCard(null); };
     $("#file").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
     const drop = $("#drop");
@@ -586,6 +852,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     }
     renderCards();
     renderMembers();
+    wireCompPanel();
   }
 
   function change() { dirty++; render(); renderEditor(); }
@@ -1304,6 +1571,7 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
         const nn = d.querySelector('[id$="-name"]').value.trim();
         if (!nn) return;
         if (data.members.some((x) => x !== m && key(x.name) === key(nn))) { d.querySelector('[id$="-name"]').setCustomValidity("Another member already has this name"); d.querySelector('[id$="-name"]').reportValidity(); return; }
+        if (data.comp && data.comp.base[key(m.name)] && key(m.name) !== key(nn)) { data.comp.base[key(nn)] = data.comp.base[key(m.name)]; delete data.comp.base[key(m.name)]; }
         m.name = nn; m.rank = d.querySelector('[id$="-rank"]').value.trim(); change();
       };
       const delBtn = d.querySelector('[data-act="del"]');
@@ -1368,9 +1636,12 @@ gems = the donated number, xp = the contributed number. Copy the username exactl
   // ---------- boot ----------
   $("#app").replaceWith(document.getElementById("shell-tpl").content.cloneNode(true));
   unlocked = ss.get("pc-unlocked") === "1";
+  if (data.comp && !data.comp.hidden) view = "comp";
   $("#period-select").addEventListener("change", (e) => {
-    if (e.target.value === "custom") { const { days } = rangeBounds(); if (!custom) setCustom(days - 6, days); }
-    else { custom = null; periodIdx = +e.target.value; }
+    const v = e.target.value;
+    if (v === "custom") { const { days } = rangeBounds(); if (!custom) setCustom(days - 6, days); view = "custom"; }
+    else if (v === "comp") view = "comp";
+    else { view = "period"; periodIdx = +v; }
     render();
   });
   const onKnob = () => { const a = +$("#range-a").value, b = +$("#range-b").value; setCustom(Math.min(a, b), Math.max(a, b)); render(); };
