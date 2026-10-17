@@ -96,7 +96,7 @@ p { margin: 0; }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .top .sub { max-width: 60ch; color: var(--ink); }
 .period-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* LIVE / FINAL badge in the staff showdown panel */
+/* LIVE / FINAL badge in the staff contest panel */
 .comp-badge { display: inline-block; border-radius: 999px; padding: 1px 10px 2px; font-family: var(--font-display); font-size: 14px; letter-spacing: .08em; color: var(--white); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 .comp-badge.live { background: #2f9e1e; }
 .comp-badge.final { background: var(--navy); }
@@ -339,10 +339,10 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   <section id="editor-root" aria-label="Editor"></section>
 </main>
-<footer class="countdown" aria-live="off">
+<footer class="countdown" id="countdown" aria-live="off" hidden>
   <div class="in">
     <div>
-      <p class="label">Clan deadline in</p>
+      <p class="label" id="countdown-label">Clan deadline in</p>
       <p class="small" id="deadline-text"></p>
     </div>
     <div class="clock" id="clock">-</div>
@@ -466,7 +466,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     };
   }
 
-  // ---------- Clan Showdown (competition) ----------
+  // ---------- Clan Contest (competition) ----------
   // data.comp = { name, start, end (ISO or null = until closed), metric: "pXp" | "pGems" | "xp" | "gems",
   //               base: { lowercased name: { xp, gems } }, hidden }
   // Scores count screenshots taken from `start` up to `end`, measured against each member's baseline.
@@ -503,16 +503,33 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const mi = Math.floor(s / 60); s -= mi * 60;
     return { live: true, text: `Ends in ${d ? d + "d " : ""}${String(h).padStart(2, "0")}h ${String(mi).padStart(2, "0")}m ${String(s).padStart(2, "0")}s` };
   }
-  // Time left or "finished", and nothing at all for an open-ended showdown.
-  const compTiming = () => (data.comp && (data.comp.end || !compLive()) ? compStatus().text : "");
+  // "Finished …" once a contest is over; while it runs, its end (if any) is counted down in the footer.
+  const compTiming = () => (data.comp && !compLive() ? compStatus().text : "");
   function drawCompHead() {
     const left = $("#comp-left");
     if (left && data.comp) left.textContent = compTiming();
   }
 
 
+  // Whole-clan gain since midnight UTC: each member's newest screenshot today minus their last one before
+  // midnight (or their first one today when there's none before). Members without a screenshot today add nothing.
+  function clanToday(field) {
+    const d = new Date(), dayStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    let sum = 0;
+    data.members.forEach((m) => {
+      const es = m.entries.filter((e) => e[field] != null).sort((x, y) => Date.parse(x.t) - Date.parse(y.t));
+      const today = es.filter((e) => Date.parse(e.t) >= dayStart);
+      if (!today.length) return;
+      const before = es.filter((e) => Date.parse(e.t) < dayStart);
+      const base = before.length ? before[before.length - 1] : today[0];
+      sum += today[today.length - 1][field] - base[field];
+    });
+    return sum;
+  }
+
   // ---------- leaderboard ----------
   function render() {
+    tickSoon();
     if (!loaded) {
       $("#board").innerHTML = `<tbody><tr><td><div class="empty"><h3>Loading the clan…</h3></div></td></tr></tbody>`;
       $("#tiles").innerHTML = "";
@@ -523,7 +540,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     if (view === "comp" && !compVisible()) view = "period";
     if (view === "custom") setCustom(custom.a, custom.b); // keep the range inside today's bounds
     const sel = $("#period-select");
-    sel.innerHTML = (compVisible() ? `<option value="comp">${esc(data.comp.name || "Clan Showdown")} (${compLive() ? "live" : "results"})</option>` : "")
+    sel.innerHTML = (compVisible() ? `<option value="comp">${esc(data.comp.name || "Clan Contest")} (${compLive() ? "live" : "results"})</option>` : "")
       + ps.map((q, i) => `<option value="${i}">${q.current ? "Current period" : "Past period"}: ${shortDate(q.start)} to ${shortDate(q.end)}</option>`).join("")
       + `<option value="custom">Custom dates (slider)</option>`;
     sel.value = view === "comp" ? "comp" : view === "custom" ? "custom" : String(periodIdx);
@@ -558,7 +575,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
         ? `The first period starts ${dateFmt(p.start, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. Screenshots added before then are each member's starting point.`
         : `Period gains count from each member's last screenshot before ${shortDate(p.start)}.`) + (dirty ? " Showing unsaved changes." : "");
     }
-    $("#board-title").textContent = isComp ? data.comp.name || "Clan Showdown" : "Clan Members";
+    $("#board-title").textContent = isComp ? data.comp.name || "Clan Contest" : "Clan Members";
 
     let cols = [
       ["name", "Member"], ["pGems", "Gems " + scope], ["pXp", "XP " + scope],
@@ -570,17 +587,20 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const val = (r, k) => (k === "name" ? r.name.toLowerCase() : r[k] ?? -Infinity);
     rows.sort((a, b) => {
       const va = val(a, sortKey), vb = val(b, sortKey);
-      // Ties fall back to lifetime XP, except on the visitor showdown board, where that value is hidden.
+      // Ties fall back to lifetime XP, except on the visitor contest board, where that value is hidden.
       return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir || (isComp && !unlocked ? 0 : b.xp - a.xp) || a.name.localeCompare(b.name);
     });
 
     const imgCols = isComp ? [["name", "Member"], [data.comp.metric, ""]] : cols.filter(([k]) => k !== "lastT");
     lastBoard = {
       isComp, rows: rows.slice(), cols: imgCols,
-      heading: isComp ? data.comp.name || "Clan Showdown" : view === "custom" ? `${shortDate(p.start)} to ${shortDate(p.end - 1)}` : `Clan Standings: ${shortDate(p.start)} to ${shortDate(p.end)}`,
+      heading: isComp ? data.comp.name || "Clan Contest" : view === "custom" ? `${shortDate(p.start)} to ${shortDate(p.end - 1)}` : `Clan Standings: ${shortDate(p.start)} to ${shortDate(p.end)}`,
       sub: isComp ? [compTiming(), `Ranked by ${METRICS[data.comp.metric].replace(/^\w/, (ch) => ch.toLowerCase()).replace(/^xP/, "XP")}`].filter(Boolean).join(" · ") : view === "custom" ? "Gains from each member's last screenshot before the first day" : pre ? "Starting points for the first period" : "Gains since the period started",
       status: isComp ? compStatus().text : "", badge: isComp ? (compLive() ? "LIVE" : "FINAL") : "",
-      metricLabel: isComp ? METRIC_SHORT[data.comp.metric] : "", scopeShort: view === "custom" ? "in range" : "this period",
+      metricLabel: isComp ? METRIC_SHORT[data.comp.metric] : "",
+      today: isComp ? (data.comp.metric === "pGems" || data.comp.metric === "gems"
+        ? { label: "Clan gems donated today", value: clanToday("gems"), kind: "gem" }
+        : { label: "Clan XP gained today", value: clanToday("xp"), kind: "xp" }) : null, scopeShort: view === "custom" ? "in range" : "this period",
     };
     const th = cols.map(([k, label]) => `<th scope="col" class="${isComp && k === data.comp.metric ? "picked" : ""}"><button type="button" data-sort="${k}" ${sortKey === k ? `aria-sort="${sortDir < 0 ? "descending" : "ascending"}"` : ""}>${label}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</button></th>`).join("");
     if (!rows.length) {
@@ -609,7 +629,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
 
   // ---------- standings image (PNG / JPG) ----------
   // Drawn on a canvas in the game's window style from the board that's on screen right now.
-  // Showdown images always show only the ranking measure, like the visitor board.
+  // Contest images always show only the ranking measure, like the visitor board.
   let lastBoard = null;
   const IMG_LABELS = { pGems: "Gems", pXp: "XP", gems: "Lifetime gems", xp: "Lifetime XP" };
 
@@ -634,9 +654,10 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     try { await Promise.all([document.fonts.load(`40px ${D}`), document.fonts.load(`700 22px ${B}`), document.fonts.load(`600 16px ${B}`)]); } catch {}
     const valCols = b.cols.filter(([k]) => k !== "name");
     const W = Math.max(900, 560 + 175 * valCols.length);
-    // Showdown images go straight from the Pink Cat banner to the table; the others keep a heading bar.
+    // Contest images go straight from the Pink Cat banner to the table; the others keep a heading bar.
     const rowH = 56, headH = b.isComp ? 0 : 104, headGap = b.isComp ? 0 : 24, top = 70;
-    const listTop = top + 52 + headH + headGap + 34; // window top + banner room + heading + gap + column labels
+    const labelH = b.today ? 50 : 34; // the contest header row is taller to fit the "today" pill
+    const listTop = top + 52 + headH + headGap + labelH; // window top + banner room + heading + gap + column labels
     const H = listTop + b.rows.length * (rowH + 6) + 92;
     const S = 2, cv = document.createElement("canvas");
     cv.width = W * S; cv.height = H * S;
@@ -688,13 +709,33 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const valW = 175, valRight = (i) => hx + hw - 20 - (valCols.length - 1 - i) * valW;
     const nameX = hx + 84;
     g.font = `700 13px ${B}`; g.fillStyle = "#1d5b86"; g.textAlign = "left";
-    g.fillText("#", hx + 26, ly + 20); g.fillText("MEMBER", nameX, ly + 20);
+    const labelY = ly + labelH / 2 + 3;
+    g.fillText("#", hx + 26, labelY); g.fillText("MEMBER", nameX, labelY);
     g.textAlign = "right";
-    valCols.forEach(([k], i) => g.fillText((b.isComp ? b.metricLabel : IMG_LABELS[k] + (k === "pGems" || k === "pXp" ? " " + b.scopeShort : "")).toUpperCase(), valRight(i), ly + 20));
+    let firstLabelW = 0;
+    valCols.forEach(([k], i) => {
+      const text = (b.isComp ? b.metricLabel : IMG_LABELS[k] + (k === "pGems" || k === "pXp" ? " " + b.scopeShort : "")).toUpperCase();
+      if (i === 0) firstLabelW = g.measureText(text).width;
+      g.fillText(text, valRight(i), labelY);
+    });
+    // Contest images: whole-clan total since midnight UTC, in a pill left of the value column's label.
+    if (b.today) {
+      const v = b.today.value, valText = v > 0 ? signed(v) : fmt(v);
+      g.font = `700 12px ${B}`;
+      const cap = b.today.label.toUpperCase(), capW = g.measureText(cap).width;
+      g.font = `22px ${D}`;
+      const numW = g.measureText(valText).width;
+      const pw = capW + numW + 46, ph = 34, pr = valRight(0) - firstLabelW - 26, px = pr - pw, py = ly + (labelH - ph) / 2 + 2;
+      rr(g, px, py, pw, ph, ph / 2); g.fillStyle = "#1d5b86"; g.fill();
+      g.textAlign = "left";
+      g.font = `700 12px ${B}`; g.fillStyle = "#d6effa"; g.fillText(cap, px + 16, py + ph / 2 + 1);
+      g.font = `22px ${D}`; g.fillStyle = v > 0 ? (b.today.kind === "gem" ? "#7fd3ff" : "#9be86a") : "#ffffff";
+      g.fillText(valText, px + 16 + capW + 14, py + ph / 2 + 2);
+    }
 
     // rows
     b.rows.forEach((r, i) => {
-      const y = ly + 34 + i * (rowH + 6), x = hx + 8, w = hw - 16;
+      const y = ly + labelH + i * (rowH + 6), x = hx + 8, w = hw - 16;
       rr(g, x, y, w, rowH, 10); g.fillStyle = i % 2 ? "#ece4c6" : "#f6efd3"; g.fill();
       const cy = y + rowH / 2 + 1;
       // place: medals for the top three
@@ -748,7 +789,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     dlg.innerHTML = `<div class="img-box"><p class="img-status">Drawing the standings…</p></div>`;
     drawStandings().then((cv) => {
       const stamp = new Date().toISOString().slice(0, 10);
-      const base = `pinkcat-${lastBoard.isComp ? "showdown" : "standings"}-${stamp}`;
+      const base = `pinkcat-${lastBoard.isComp ? "contest" : "standings"}-${stamp}`;
       const blobOf = (type) => new Promise((res) => cv.toBlob(res, type, 0.92));
       blobOf("image/png").then((png) => {
         const url = URL.createObjectURL(png);
@@ -779,9 +820,26 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
   document.addEventListener("keydown", (e) => { const d = $("#img-dialog"); if (e.key === "Escape" && d && !d.hidden) $("#img-close").click(); });
 
   // ---------- countdown ----------
+  const tickSoon = () => { clearTimeout(tickSoon.t); tickSoon.t = setTimeout(tick, 0); };
+  // The footer counts down to the current period's deadline, or to a live contest's end when that contest
+  // is on screen and has one. Past periods, custom dates and open-ended contests show no footer.
+  function footerTarget(now) {
+    if (!loaded) return null;
+    if (view === "period" && periodIdx === 0) return { end: currentEnd(now), label: "Clan deadline in" };
+    if (view === "comp" && data.comp && data.comp.end && now < compEnd()) return { end: compEnd(), label: `${data.comp.name || "Clan Contest"} ends in` };
+    return null;
+  }
   function tick() {
     const now = Date.now();
-    const end = currentEnd(now);
+    const target = footerTarget(now);
+    $("#countdown").hidden = !target;
+    if (target) drawClock(now, target);
+    if (periods(now).length !== periods(now - 1000).length) render();
+    else if (data.comp && compEnd() <= now && compEnd() > now - 1000) { render(); if (unlocked) renderEditor(); }
+    else if (view === "comp") drawCompHead();
+  }
+  function drawClock(now, { end, label }) {
+    $("#countdown-label").textContent = label;
     let s = Math.max(0, Math.floor((end - now) / 1000));
     const d = Math.floor(s / 86400); s -= d * 86400;
     const h = Math.floor(s / 3600); s -= h * 3600;
@@ -791,21 +849,18 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     $("#clock").innerHTML = slot(d, d === 1 ? "day" : "days") + slot(p2(h), "hrs") + slot(p2(m), "min") + slot(p2(s), "sec");
     const utc = new Date(end).toUTCString().replace(":00 GMT", " UTC");
     $("#deadline-text").textContent = `${utc} · your time: ${dateFmt(end, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
-    if (periods(now).length !== periods(now - 1000).length) render();
-    else if (data.comp && compEnd() <= now && compEnd() > now - 1000) { render(); if (unlocked) renderEditor(); }
-    else if (view === "comp") drawCompHead();
   }
 
   // ---------- editor ----------
-  // ---------- Clan Showdown: staff controls ----------
-  let compDraft = null; // settings for a showdown that hasn't started yet
+  // ---------- Clan Contest: staff controls ----------
+  let compDraft = null; // settings for a contest that hasn't started yet
   const LENGTHS = [["", "No end date (close it by hand)"], ["1", "1 day"], ["3", "3 days"], ["7", "7 days"], ["14", "14 days"], ["30", "30 days"], ["date", "Until a date I pick"]];
   const lastEntryBefore = (m, ms) => m.entries.filter((e) => Date.parse(e.t) < ms).sort((a, b) => Date.parse(a.t) - Date.parse(b.t)).pop();
   function newDraft() {
     const start = Date.now();
     const base = {};
     data.members.forEach((m) => { const e = lastEntryBefore(m, start + 60e3); base[key(m.name)] = { xp: e ? e.xp : null, gems: e ? e.gems : null }; });
-    return { name: "Clan Showdown", start: localInput(start), len: "", endAt: localInput(start + 7 * DAY), metric: "pXp", base, newMembers: [] };
+    return { name: "Clan Contest", start: localInput(start), len: "", endAt: localInput(start + 7 * DAY), metric: "pXp", base, newMembers: [] };
   }
   // "name: 1.234.567" per line. Names match ignoring case, then ignoring symbols, then allowing one typo.
   function parseList(text) {
@@ -847,8 +902,8 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
       const d = compDraft || (compDraft = newDraft());
       return `
         <div class="panel" id="comp-panel">
-          <h2>Start a Clan Showdown</h2>
-          <p class="small muted">A showdown ranks members from their starting values. While it's open it's the first thing everyone sees on the page. Screenshots keep updating it as usual.</p>
+          <h2>Start a Clan Contest</h2>
+          <p class="small muted">A contest ranks members from their starting values. While it's open it's the first thing everyone sees on the page. Screenshots keep updating it as usual.</p>
           <div class="form-grid">
             <label>Name<input type="text" id="cd-name" value="${esc(d.name)}"></label>
             <label>Starts<input type="datetime-local" id="cd-start" value="${esc(d.start)}"></label>
@@ -862,7 +917,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           <textarea id="cd-paste" rows="4" placeholder="apples: 3.272.000&#10;kaiji: 1.322.324"></textarea>
           <div class="row"><button type="button" id="cd-apply">Use this list</button><span class="small" id="cd-paste-note"></span></div>
           ${baseRows((m) => d.base[key(m.name)], d.newMembers.map((n) => `<tr><td>${esc(n.name)} <span class="chip warn">new member</span></td><td class="num">${fmt(n.xp)}</td><td class="muted small">added with XP only</td></tr>`).join(""))}
-          <div class="row"><button type="button" class="primary" id="cd-go">Start the showdown</button></div>
+          <div class="row"><button type="button" class="primary" id="cd-go">Start the contest</button></div>
         </div>`;
     }
     const st = compStatus();
@@ -870,7 +925,7 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
     const len = !c.end ? "" : "date";
     return `
       <div class="panel" id="comp-panel">
-        <h2>${esc(c.name || "Clan Showdown")}</h2>
+        <h2>${esc(c.name || "Clan Contest")}</h2>
         <p class="small"><span class="comp-badge ${st.live ? "live" : "final"}">${st.live ? "LIVE" : "FINAL"}</span> ${esc(st.text)} · started ${dateFmt(startMs, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}${c.hidden ? " · <b>hidden from visitors</b>" : ""}</p>
         <div class="form-grid">
           <label>Name<input type="text" id="cc-name" value="${esc(c.name || "")}"></label>
@@ -879,9 +934,9 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           <label ${len === "date" ? "" : "hidden"}>Ends<input type="datetime-local" id="cc-end" value="${c.end ? localInput(Date.parse(c.end)) : localInput(Date.now() + 7 * DAY)}"></label>
         </div>
         <div class="row">
-          ${st.live ? `<button type="button" class="danger" id="cc-close">End the showdown now</button>` : `<button type="button" id="cc-reopen">Reopen with no end date</button>`}
+          ${st.live ? `<button type="button" class="danger" id="cc-close">End the contest now</button>` : `<button type="button" id="cc-reopen">Reopen with no end date</button>`}
           <button type="button" id="cc-hide">${c.hidden ? "Show it to visitors again" : "Hide it from visitors"}</button>
-          <button type="button" class="danger" id="cc-delete">Delete the showdown</button>
+          <button type="button" class="danger" id="cc-delete">Delete the contest</button>
         </div>
         <details class="member"><summary><b>Starting values</b><span class="small muted">edit if a number was wrong</span></summary>
           <div class="inner">
@@ -935,14 +990,14 @@ details.member .inner { padding: 0 12px 12px; display: grid; gap: 10px; }
           data.members.push({ name: n.name, rank: "", entries: [{ t: new Date(startMs - 60e3).toISOString(), gems: null, xp: n.xp }] });
           base[key(n.name)] = { xp: n.xp, gems: null };
         });
-        data.comp = { name: d.name.trim() || "Clan Showdown", start: new Date(startMs).toISOString(), end: lengthToEnd(startMs, d.len, d.endAt), metric: d.metric, base, hidden: false };
+        data.comp = { name: d.name.trim() || "Clan Contest", start: new Date(startMs).toISOString(), end: lengthToEnd(startMs, d.len, d.endAt), metric: d.metric, base, hidden: false };
         compDraft = null;
         view = "comp";
         change();
       };
       return;
     }
-    $("#cc-name").onchange = (e) => { c.name = e.target.value.trim() || "Clan Showdown"; change(); };
+    $("#cc-name").onchange = (e) => { c.name = e.target.value.trim() || "Clan Contest"; change(); };
     $("#cc-metric").onchange = (e) => { c.metric = e.target.value; sortKey = c.metric; sortDir = -1; change(); };
     $("#cc-len").onchange = (e) => {
       const v = e.target.value;
